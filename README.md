@@ -25,3 +25,13 @@ A trade-off of this layered, containerized approach is additional architectural
 complexity and inter-layer communication overhead compared to a simpler monolithic 
 design. However, the benefits in security, scalability, maintainability, and long-term 
 extensibility make this architecture appropriate for the food delivery system.
+
+## Backend Structure
+
+backend/
+└── app/
+    ├── api
+    ├── models
+    ├── schemas
+    ├── services
+    └── core
