@@ -28,10 +28,15 @@ extensibility make this architecture appropriate for the food delivery system.
 
 ## Backend Structure
 
+```
 backend/
-└── app/
+└── app/  
     ├── api
     ├── models
     ├── schemas
     ├── services
     └── core
+```
+
+
+
