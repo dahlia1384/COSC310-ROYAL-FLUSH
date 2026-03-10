@@ -1,0 +1,26 @@
+services:
+
+  backend:
+    build: ./backend
+    container_name: cosc310_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - NOTIFICATION_URL=http://notification_service:8001
+      - PRICE_URL=http://price_service:8002
+    depends_on:
+      - notification_service
+      - price_service
+
+  notification_service:
+    build: ./notification_service
+    container_name: cosc310_notification
+    ports:
+      - "8001:8001"
+
+  price_service:
+    build: ./price_service
+    container_name: cosc310_price
+    ports:
+      - "8002:8002"
+
