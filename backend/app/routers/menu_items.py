@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 from typing import List
-from schemas.menu_item import MenuItem, MenuItemCreate, MenuItemUpdate
-from services.menu_items_service import (
+from app.schemas.menu_item import MenuItem, MenuItemCreate, MenuItemUpdate
+from app.services.menu_items_service import (
     list_menu_items_for_restaurant,
     create_menu_item,
     get_menu_item_by_id,

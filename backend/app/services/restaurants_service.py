@@ -1,8 +1,8 @@
 import uuid
 from typing import List
 from fastapi import HTTPException
-from schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
-from repositories.restaurants_repo import load_all, save_all
+from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
+from app.repositories.restaurants_repo import load_all, save_all
 
 def list_restaurants() -> List[Restaurant]:
     return [Restaurant(**r) for r in load_all()]

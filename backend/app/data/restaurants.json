@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": "1",
+    "name": "Aegean Table",
+    "cuisine": "Mediterranean",
+    "address": "City_8"
+  },
+  {
+    "id": "2",
+    "name": "Bombay Tandoor",
+    "cuisine": "Indian",
+    "address": "City_2"
+  },
+  {
+    "id": "3",
+    "name": "Cedar & Olive",
+    "cuisine": "Mediterranean",
+    "address": "City_4"
+  },
+  {
+    "id": "4",
+    "name": "El Camino Taqueria",
+    "cuisine": "Mexican",
+    "address": "City_4"
+  },
+  {
+    "id": "5",
+    "name": "Ironwood Burger Co.",
+    "cuisine": "American",
+    "address": "City_6"
+  },
+  {
+    "id": "6",
+    "name": "Jade Dragon Bistro",
+    "cuisine": "Asian",
+    "address": "City_5"
+  },
+  {
+    "id": "7",
+    "name": "Lotus Garden",
+    "cuisine": "Asian",
+    "address": "City_7"
+  },
+  {
+    "id": "8",
+    "name": "Piazza Verona",
+    "cuisine": "Italian",
+    "address": "City_2"
+  },
+  {
+    "id": "9",
+    "name": "Riverstone Smokehouse",
+    "cuisine": "American",
+    "address": "City_9"
+  },
+  {
+    "id": "10",
+    "name": "Saffron Palace",
+    "cuisine": "Indian",
+    "address": "City_6"
+  },
+  {
+    "id": "11",
+    "name": "Sierra Madre Cocina",
+    "cuisine": "Mexican",
+    "address": "City_6"
+  },
+  {
+    "id": "12",
+    "name": "Trattoria Romano",
+    "cuisine": "Italian",
+    "address": "City_9"
+  }
+]
