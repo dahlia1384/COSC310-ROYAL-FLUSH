@@ -1,11 +1,12 @@
 import uuid
 from typing import List
 from fastapi import HTTPException
-from app.schemas.menu_item import MenuItem, MenuItemCreate, MenuItemUpdate
-from app.repositories.menu_items_repo import load_all, save_all
-from app.services.restaurants_service import get_restaurant_by_id
+from schemas.menu_item import MenuItem, MenuItemCreate, MenuItemUpdate
+from repositories.menu_items_repo import load_all, save_all
+from services.restaurants_service import get_restaurant_by_id
 
 def list_menu_items_for_restaurant(restaurant_id: str) -> List[MenuItem]:
+    # Enforce restaurant exists
     get_restaurant_by_id(restaurant_id)
 
     items = load_all()
@@ -13,6 +14,7 @@ def list_menu_items_for_restaurant(restaurant_id: str) -> List[MenuItem]:
     return [MenuItem(**it) for it in filtered]
 
 def create_menu_item(restaurant_id: str, payload: MenuItemCreate) -> MenuItem:
+    # Enforce restaurant exists
     get_restaurant_by_id(restaurant_id)
 
     items = load_all()
@@ -25,7 +27,6 @@ def create_menu_item(restaurant_id: str, payload: MenuItemCreate) -> MenuItem:
         restaurant_id=restaurant_id,
         name=payload.name.strip(),
         price=float(payload.price),
-        order_qty=int(payload.order_qty),
         description=payload.description.strip() if payload.description else None
     )
     items.append(new_item.dict())
@@ -44,10 +45,9 @@ def update_menu_item(menu_item_id: str, payload: MenuItemUpdate) -> MenuItem:
         if it.get("id") == menu_item_id:
             updated = MenuItem(
                 id=menu_item_id,
-                restaurant_id=it["restaurant_id"],
+                restaurant_id=it["restaurant_id"],  # keep same restaurant
                 name=payload.name.strip(),
                 price=float(payload.price),
-                order_qty=int(payload.order_qty),
                 description=payload.description.strip() if payload.description else None
             )
             items[idx] = updated.dict()
