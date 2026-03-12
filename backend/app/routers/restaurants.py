@@ -1,7 +1,7 @@
 from fastapi import APIRouter, status
 from typing import List
-from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
-from app.services.restaurants_service import (
+from schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
+from services.restaurants_service import (
     list_restaurants,
     create_restaurant,
     get_restaurant_by_id,
