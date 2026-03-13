@@ -15,8 +15,10 @@ class OrderItem(BaseModel):
 class OrderRequest(BaseModel):
     user_id: int
     items: List[OrderItem]
+    promo_code: Optional[str] = None
     tax_rate: Optional[float] = Field(default=0.05, ge=0)
     delivery_fee: Optional[float] = Field(default=4.99, ge=0)
+    service_charge_rate: Optional[float] = Field(default=0.10, ge=0)
 
 
 DATA_PATH = Path("/app/data/menu_items.json")
@@ -36,51 +38,17 @@ def load_menu_items():
     if not DATA_PATH.exists():
         raise HTTPException(status_code=500, detail="menu_items.json not found")
 
-    try:
-        with open(DATA_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="menu_items.json is invalid")
-
-    if not isinstance(data, list):
-        raise HTTPException(status_code=500, detail="menu_items.json must contain a list")
-
-    return data
-
-
-def build_menu_lookup(menu_items):
-    lookup = {}
-
-    for item in menu_items:
-        item_id = item.get("id")
-        name = item.get("name")
-        price = item.get("price")
-
-        if item_id is None or name is None or price is None:
-            continue
-
-        try:
-            lookup[int(item_id)] = {
-                "id": int(item_id),
-                "name": str(name),
-                "price": float(price)
-            }
-        except (TypeError, ValueError):
-            continue
-
-    return lookup
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 @app.post("/calculate")
 def calculate_price(order: OrderRequest):
-    if not order.items:
-        raise HTTPException(status_code=400, detail="Order must contain at least one item")
-
     menu_items = load_menu_items()
-    menu_lookup = build_menu_lookup(menu_items)
+    menu_lookup = {item["id"]: item for item in menu_items if "id" in item}
 
     subtotal = 0.0
-    item_breakdown = []
+    breakdown = []
 
     for ordered_item in order.items:
         menu_item = menu_lookup.get(ordered_item.menu_item_id)
@@ -91,26 +59,35 @@ def calculate_price(order: OrderRequest):
                 detail=f"Menu item {ordered_item.menu_item_id} not found"
             )
 
-        unit_price = menu_item["price"]
-        quantity = ordered_item.quantity
-        line_total = unit_price * quantity
+        unit_price = float(menu_item["price"])
+        line_total = unit_price * ordered_item.quantity
         subtotal += line_total
 
-        item_breakdown.append({
-            "menu_item_id": menu_item["id"],
+        breakdown.append({
+            "menu_item_id": ordered_item.menu_item_id,
             "name": menu_item["name"],
             "unit_price": round(unit_price, 2),
-            "quantity": quantity,
+            "quantity": ordered_item.quantity,
             "line_total": round(line_total, 2)
         })
 
-    tax = subtotal * order.tax_rate
-    total = subtotal + tax + order.delivery_fee
+    service_charge = subtotal * order.service_charge_rate
+
+    discount = 0.0
+    if order.promo_code == "SAVE10":
+        discount = subtotal * 0.10
+    elif order.promo_code == "SAVE20":
+        discount = subtotal * 0.20
+
+    subtotal_after_discount = subtotal - discount
+    tax = subtotal_after_discount * order.tax_rate
+    total = subtotal_after_discount + tax + order.delivery_fee + service_charge
 
     return {
-        "items": item_breakdown,
+        "items": breakdown,
         "subtotal": round(subtotal, 2),
-        "tax_rate": round(order.tax_rate, 4),
+        "discount": round(discount, 2),
+        "service_charge": round(service_charge, 2),
         "tax": round(tax, 2),
         "delivery_fee": round(order.delivery_fee, 2),
         "total": round(total, 2)
