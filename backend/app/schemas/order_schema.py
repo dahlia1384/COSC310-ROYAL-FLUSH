@@ -14,7 +14,7 @@ class OrderCreate(BaseModel):
 class Order(BaseModel):
     id: int
     user_id: int
-    restaraunt_id: int
+    restaurant_id: int
     items: List[OrderItem]
     status: str
     created_at: datetime
@@ -25,7 +25,7 @@ class OrderStatusUpdate(BaseModel):
 class OrderResponse(BaseModel):
     d: int
     user_id: int
-    restaraunt_id: int
+    restaurant_id: int
     status: str
     created_at: datetime
     
