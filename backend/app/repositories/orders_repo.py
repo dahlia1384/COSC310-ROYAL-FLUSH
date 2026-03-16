@@ -3,7 +3,7 @@ import json, os
 from typing import List, Dict, Any
 from datetime import datetime
 
-DATA_PATH = path(_file_).resolve().parents[1] / "data" / "orders.json"
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "orders.json"
 
 def load_all() -> List[Dict[str, Any]]:
     if not DATA_PATH.exists():
