@@ -1,12 +1,16 @@
+import os
+from typing import List
+
+import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List
-from app.routers.restaurants import router as restaurants_router
-from app.routers.menu_items import router as menu_items_router
+
+from app.routers.auth_router import router as auth_router
 from app.routers.data import router as data_router
+from app.routers.menu_items import router as menu_items_router
+from app.routers.restaurants import router as restaurants_router
 from app.services.data_service import get_orders_from_csv
-import httpx
-import os
+
 
 app = FastAPI(title="Backend Service")
 
@@ -25,6 +29,11 @@ class OrderRequest(BaseModel):
     items: List[Item]
 
 
+@app.on_event("startup")
+def startup_ingest():
+    get_orders_from_csv()
+
+
 @app.get("/")
 def root():
     return {"message": "Backend running"}
@@ -37,11 +46,8 @@ def health():
 
 @app.post("/place-order")
 async def place_order(order: OrderRequest):
-
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-
-            # call price service
             price_response = await client.post(
                 f"{PRICE_SERVICE}/calculate",
                 json=order.model_dump()
@@ -49,7 +55,6 @@ async def place_order(order: OrderRequest):
             price_response.raise_for_status()
             price_data = price_response.json()
 
-            # send notification
             await client.post(
                 f"{NOTIFICATION_SERVICE}/send",
                 json={
@@ -73,10 +78,8 @@ async def place_order(order: OrderRequest):
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="Service timeout")
 
-    @app.on_event("startup")
-    def startup_ingest():
-        get_orders_from_csv()
 
-    app.include_router(restaurants_router)
-    app.include_router(menu_items_router)
-    app.include_router(data_router)
+app.include_router(restaurants_router)
+app.include_router(menu_items_router)
+app.include_router(data_router)
+app.include_router(auth_router)

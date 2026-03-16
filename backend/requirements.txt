@@ -2,3 +2,9 @@ fastapi
 uvicorn[standard]
 httpx
 pydantic
+fastapi
+sqlalchemy
+passlib[bcrypt]
+PyJWT
+bcrypt
+email-validator
