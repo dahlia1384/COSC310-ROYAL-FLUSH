@@ -17,6 +17,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    volumes:
+      - ./backend/app:/code/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   notification_service:
     build: ./notification_service
@@ -28,6 +32,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   price_service:
     build: ./price_service
@@ -39,3 +44,4 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
