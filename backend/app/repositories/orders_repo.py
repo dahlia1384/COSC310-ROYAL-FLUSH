@@ -18,7 +18,7 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
     os.replace(tmp, DATA_PATH)
 
 def create_order(order_data: Dict[str, Any]) -> Dict[str, Any]: 
-    orders = load all()
+    orders = load_all()
     order_data["order_time"] = datetime.utcnow().isoformat()
     orders.append(order_data)
     save_all(orders)
@@ -35,10 +35,9 @@ def get_orders_by_customer(customer_id: str) -> List[Dict[str, Any]]:
 
 def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
     orders = load_all()
-    for idx, order in enumerate(orders):
+    for order in enumerate(orders):
         if order.get("order_id") == order_id:
             order["order_status"]=new_status
-            order[idx] = order
             save_all(orders)
             return order
     return None
