@@ -29,13 +29,13 @@ def get_order_by_id(order_id: str) -> Dict[str, Any]:
         if order.get("order_id") == order_id:
             return order
     return None
-
+#change customer_id data type to UUID
 def get_orders_by_customer(customer_id: str) -> List[Dict[str, Any]]:
     return [o for o in load_all() if o.get("customer_id") == customer_id]
 
 def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
     orders = load_all()
-    for order in enumerate(orders):
+    for order in orders:
         if order.get("order_id") == order_id:
             order["order_status"]=new_status
             save_all(orders)
