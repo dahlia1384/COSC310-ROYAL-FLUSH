@@ -14,9 +14,13 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
     if any(r.get("id") == new_id for r in restaurants):
         raise HTTPException(status_code=409, detail="ID collision; retry.")
 
+    stripped_name = payload.name.strip()
+    if not stripped_name:
+        raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
     new_restaurant = Restaurant(
         id=new_id,
-        name=payload.name.strip(),
+        name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
     )
@@ -34,9 +38,13 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
     restaurants = load_all()
     for idx, r in enumerate(restaurants):
         if r.get("id") == restaurant_id:
+            stripped_name = payload.name.strip()
+            if not stripped_name:
+                raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
             updated = Restaurant(
                 id=restaurant_id,
-                name=payload.name.strip(),
+                name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
             )
