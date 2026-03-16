@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
-from app.main import app
-
+from main import app
 client = TestClient(app)
 
 def test_calculate_price():
@@ -13,6 +12,9 @@ def test_calculate_price():
     }
 
     response = client.post("/calculate", json=payload)
+    print(response.status_code)
+    print(response.json())
+
     assert response.status_code == 200
 
     data = response.json()
