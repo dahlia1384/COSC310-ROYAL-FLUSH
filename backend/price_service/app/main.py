@@ -38,8 +38,28 @@ def load_menu_items():
     if not DATA_PATH.exists():
         raise HTTPException(status_code=500, detail="menu_items.json not found")
 
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(DATA_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="menu_items.json is invalid")
+
+    if not isinstance(data, list):
+        raise HTTPException(status_code=500, detail="menu_items.json must contain a list")
+
+    return data
+
+
+def get_discount_rate(promo_code: Optional[str]) -> float:
+    promo_map = {
+        "SAVE10": 0.10,
+        "SAVE20": 0.20,
+    }
+
+    if not promo_code:
+        return 0.0
+
+    return promo_map.get(promo_code.upper(), 0.0)
 
 
 @app.post("/calculate")
@@ -59,34 +79,39 @@ def calculate_price(order: OrderRequest):
                 detail=f"Menu item {ordered_item.menu_item_id} not found"
             )
 
-        unit_price = float(menu_item["price"])
+        try:
+            unit_price = float(menu_item["price"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Invalid price for menu item {ordered_item.menu_item_id}"
+            )
+
         line_total = unit_price * ordered_item.quantity
         subtotal += line_total
 
         breakdown.append({
             "menu_item_id": ordered_item.menu_item_id,
-            "name": menu_item["name"],
+            "name": menu_item.get("name", "Unknown Item"),
             "unit_price": round(unit_price, 2),
             "quantity": ordered_item.quantity,
             "line_total": round(line_total, 2)
         })
 
-    service_charge = subtotal * order.service_charge_rate
+    discount_rate = get_discount_rate(order.promo_code)
+    discount = subtotal * discount_rate
+    discounted_subtotal = subtotal - discount
 
-    discount = 0.0
-    if order.promo_code == "SAVE10":
-        discount = subtotal * 0.10
-    elif order.promo_code == "SAVE20":
-        discount = subtotal * 0.20
-
-    subtotal_after_discount = subtotal - discount
-    tax = subtotal_after_discount * order.tax_rate
-    total = subtotal_after_discount + tax + order.delivery_fee + service_charge
+    service_charge = discounted_subtotal * order.service_charge_rate
+    tax = discounted_subtotal * order.tax_rate
+    total = discounted_subtotal + service_charge + tax + order.delivery_fee
 
     return {
         "items": breakdown,
         "subtotal": round(subtotal, 2),
+        "promo_code": order.promo_code,
         "discount": round(discount, 2),
+        "discounted_subtotal": round(discounted_subtotal, 2),
         "service_charge": round(service_charge, 2),
         "tax": round(tax, 2),
         "delivery_fee": round(order.delivery_fee, 2),
