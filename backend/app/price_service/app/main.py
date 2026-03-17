@@ -21,7 +21,7 @@ class OrderRequest(BaseModel):
     service_charge_rate: Optional[float] = Field(default=0.10, ge=0)
 
 
-DATA_PATH = Path("/app/data/menu_items.json")
+DATA_PATH = Path(__file__).parent / "menu_items.json"
 
 
 @app.get("/")
