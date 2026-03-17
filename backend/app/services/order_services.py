@@ -1,6 +1,7 @@
 import uuid
 from fastapi import HTTPException
 from typing import List
+
 from app.schemas.order_schema import Order, OrderCreate
 from app.repositories.orders_repo import(
     create_order,
@@ -12,7 +13,7 @@ from app.repositories.orders_repo import(
 def create_new_order(payload: OrderCreate) -> Order:
     order_data = payload.dict()
     order_data["order_id"]= str (uuid.uuid4())
-    order_data["order_status"] = "Order Created"
+    order_data["order_status"] = "created"
     created = create_order(order_data)
     return Order(**created)
 
@@ -31,6 +32,7 @@ def change_order_status(order_id: str, status: str) -> Order:
     if not updated:
         raise HTTPException(status_code = 404, detail = "Order Not Found") 
     return Order(**updated)
+
 
 
 
