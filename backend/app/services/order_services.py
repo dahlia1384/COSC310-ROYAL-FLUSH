@@ -27,10 +27,17 @@ def list_customer_orders(customer_id: str) -> List[Order]:
     return [Order (**o) for o in orders]
 
 def change_order_status(order_id: str, status: str) -> Order:
-    updated = update_order_status(order_id, status)
-    if not updated:
+    order = get_order_by_id(order_id)
+    if not order:
         raise HTTPException(status_code = 404, detail = "Order Not Found") 
+    
+    if order.get("order_status") == "delivered":
+        raise HTTPException(status_code = 400, detail= "Can't modify delivered order")
+
+    updated = updated_order_status(order_id, status)
     return Order(**updated)
+
+
 
 
 
