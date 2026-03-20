@@ -215,3 +215,69 @@ def test_delete_restaurant_raises_404_when_missing(monkeypatch: pytest.MonkeyPat
 
     assert exc.value.status_code == 404  # checks that deleting a missing restaurant returns 404
     assert "not found" in exc.value.detail.lower()  # checks that the output is the expected error message
+
+def test_delete_restaurant_with_completed_orders_succeeds(monkeypatch):
+    fake_restaurants = [
+        {
+            "id": "r1",
+            "name": "Spice House",
+            "cuisine": "Indian",
+            "address": "123 Main St",
+        }
+    ]
+
+    saved = {}
+
+    monkeypatch.setattr(restaurant_service, "load_all", lambda: fake_restaurants)
+    monkeypatch.setattr(restaurant_service, "has_unfinished_orders", lambda restaurant_id: False)
+    monkeypatch.setattr(
+        restaurant_service,
+        "save_all",
+        lambda restaurants: saved.setdefault("restaurants", restaurants)
+    )
+
+    restaurant_service.delete_restaurant("r1")
+
+    assert saved["restaurants"] == []  # checks that the restaurant was deleted when no unfinished orders exist
+
+
+def test_delete_restaurant_with_pending_orders_raises_error(monkeypatch):
+    fake_restaurants = [
+        {
+            "id": "r1",
+            "name": "Spice House",
+            "cuisine": "Indian",
+            "address": "123 Main St",
+        }
+    ]
+
+    monkeypatch.setattr(restaurant_service, "load_all", lambda: fake_restaurants)
+    monkeypatch.setattr(restaurant_service, "has_unfinished_orders", lambda restaurant_id: True)
+    monkeypatch.setattr(restaurant_service, "save_all", lambda restaurants: None)
+
+    with pytest.raises(HTTPException) as exc:
+        restaurant_service.delete_restaurant("r1")
+
+    assert exc.value.status_code == 400  # checks that deletion is blocked for unfinished orders
+    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+
+
+def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
+    fake_restaurants = [
+        {
+            "id": "r1",
+            "name": "Spice House",
+            "cuisine": "Indian",
+            "address": "123 Main St",
+        }
+    ]
+
+    monkeypatch.setattr(restaurant_service, "load_all", lambda: fake_restaurants)
+    monkeypatch.setattr(restaurant_service, "has_unfinished_orders", lambda restaurant_id: True)
+    monkeypatch.setattr(restaurant_service, "save_all", lambda restaurants: None)
+
+    with pytest.raises(HTTPException) as exc:
+        restaurant_service.delete_restaurant("r1")
+
+    assert exc.value.status_code == 400  # checks that deletion is blocked for active orders too
+    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message

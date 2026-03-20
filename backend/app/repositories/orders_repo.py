@@ -15,3 +15,15 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(orders, f, ensure_ascii=False, indent=2)
     os.replace(tmp, DATA_PATH)
+
+def has_unfinished_orders(restaurant_id: str) -> bool:
+    unfinished_statuses = {"pending", "active"}
+
+    for order in load_all():
+        if (
+            order.get("restaurant_id") == restaurant_id
+            and str(order.get("status", "")).strip().lower() in unfinished_statuses
+        ):
+            return True
+
+    return False

@@ -3,6 +3,7 @@ from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
+from app.repositories.orders_repo import has_unfinished_orders
 
 def list_restaurants() -> List[Restaurant]:
     return [Restaurant(**r) for r in load_all()]
@@ -55,7 +56,15 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
 
 def delete_restaurant(restaurant_id: str) -> None:
     restaurants = load_all()
-    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
-    if len(new_restaurants) == len(restaurants):
+
+    if not any(r.get("id") == restaurant_id for r in restaurants):
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+
+    if has_unfinished_orders(restaurant_id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Restaurant '{restaurant_id}' cannot be deleted because it has pending or active orders"
+        )
+
+    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
     save_all(new_restaurants)
