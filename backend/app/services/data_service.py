@@ -12,6 +12,16 @@ from app.repositories.menu_items_repo import (
     save_all as save_menu_items,
 )
 
+REQUIRED_HEADERS = {
+    "restaurant_id",
+    "restaurant_name",
+    "cuisine",
+    "location",
+    "food_item",
+    "order_value",
+    "order_qty",
+}
+
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "food_delivery.csv"
 
 logger = logging.getLogger(__name__)
@@ -35,55 +45,6 @@ def _parse_int(value: Any, default: int = 0) -> int:
         return default
 
 
-def _build_menu_lookup(menu_items: list[dict]) -> dict[tuple[str, str], dict]:
-    lookup = {}
-    for item in menu_items:
-        key = (_clean_str(item.get("restaurant_id")), _clean_str(item.get("name")))
-        lookup[key] = item
-    return lookup
-
-
-def _validate_headers(fieldnames: list[str] | None) -> None:
-    required = {
-        "restaurant_id",
-        "restaurant_name",
-        "cuisine",
-        "location",
-        "food_item",
-        "order_value",
-        "order_qty",
-    }
-
-    actual = set(fieldnames or [])
-    missing = required - actual
-    if missing:
-        raise ValueError(f"CSV is missing required columns: {sorted(missing)}")
-
-
-def get_orders_from_csv() -> dict[str, int]:
-    """
-    Read food delivery order data from the CSV file and update the
-    restaurant and menu item JSON datasets.
-
-    Returns:
-        dict[str, int]: Summary of how many restaurants were added,
-        menu items were added, and existing menu items were updated.
-    """
-    logger.info("Starting food delivery CSV import from %s", DATA_PATH)
-
-    restaurants = load_restaurants()
-    menu_items = load_menu_items()
-REQUIRED_HEADERS = {
-    "restaurant_id",
-    "restaurant_name",
-    "cuisine",
-    "location",
-    "food_item",
-    "order_value",
-    "order_qty",
-}
-
-
 def _validate_required_headers(fieldnames):
     # Raises a ValueError if the CSV is missing any required column headers
 
@@ -92,19 +53,12 @@ def _validate_required_headers(fieldnames):
     if missing_headers:
         raise ValueError(f"CSV is missing required headers: {sorted(missing_headers)}")
 
-
-    existing_restaurant_ids = {_clean_str(r.get("id")) for r in restaurants}
-    menu_lookup = _build_menu_lookup(menu_items)
 def _build_menu_lookup(menu_items):
     # builds a lookup dictionary to keep track of existing recorded orders for each menu item 
 
-    restaurants_added = 0
-    menu_items_added = 0
-    menu_items_updated = 0
-    rows_skipped = 0
     menu_lookup = {}
     for item in menu_items:
-        key = (str(item["restaurant_id"]).strip(), str(item["name"]).strip())
+        key = (_clean_str(item.get("restaurant_id")), _clean_str(item.get("name")))
         menu_lookup[key] = item
     return menu_lookup
 
@@ -115,12 +69,16 @@ def get_orders_from_csv():
     restaurants = load_restaurants()
     menu_items = load_menu_items()
 
-    existing_restaurant_ids = {str(r["id"]).strip() for r in restaurants}
+    existing_restaurant_ids = {_clean_str(r.get("id")) for r in restaurants}
     menu_lookup = _build_menu_lookup(menu_items)
 
-    with open(DATA_PATH, newline="", encoding="utf-8") as f:
+    restaurants_added = 0
+    menu_items_added = 0
+    menu_items_updated = 0
+    rows_skipped = 0
+
+    with DATA_PATH.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        _validate_headers(reader.fieldnames)
         _validate_required_headers(reader.fieldnames)
 
         for line_number, row in enumerate(reader, start=2):
@@ -130,36 +88,35 @@ def get_orders_from_csv():
             location = _clean_str(row.get("location")) or None
             food_item = _clean_str(row.get("food_item"))
 
-        for row in reader:
-            line_number = reader.line_num
-
-            restaurant_id = str(row["restaurant_id"]).strip()
-            restaurant_name = str(row["restaurant_name"]).strip()
-            cuisine = str(row["cuisine"]).strip() if row["cuisine"] else None
-            location = str(row["location"]).strip() if row["location"] else None
-            food_item = str(row["food_item"]).strip()
-            
             if not restaurant_id or not food_item:
                 rows_skipped += 1
                 logger.warning(
                     "Skipping row %s due to missing restaurant_id or food_item",
                     line_number,
                 )
-                print(f"Error on row {line_number}: missing restaurant_id or food_item. Row skipped. Please fix and try again.")
                 continue
 
-            price = _parse_float(row.get("order_value"), 0.0)
-            order_qty = _parse_int(row.get("order_qty"), 0)
+            raw_order_value = row.get("order_value")
             try:
-                price = float(row["order_value"])
-            except (ValueError, TypeError):
-                print(f"Error on row {line_number}: invalid order_value '{row['order_value']}'. Row skipped.")
+                price = float(raw_order_value)
+            except (TypeError, ValueError):
+                rows_skipped += 1
+                logger.warning(
+                    "Skipping row %s due to invalid order_value '%s'",
+                    line_number,
+                    raw_order_value,
+                )
                 continue
 
+            raw_order_qty = row.get("order_qty")
             try:
-                order_qty = int(row["order_qty"])
-            except (ValueError, TypeError):
-                print(f"Warning on row {line_number}: invalid order_qty '{row['order_qty']}'. Defaulting to 1.")
+                order_qty = int(raw_order_qty)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "Invalid order_qty '%s' on row %s; defaulting to 1",
+                    raw_order_qty,
+                    line_number,
+                )
                 order_qty = 1
 
             if restaurant_id not in existing_restaurant_ids:
@@ -171,12 +128,6 @@ def get_orders_from_csv():
                         "address": location,
                     }
                 )
-                restaurants.append({
-                    "id": restaurant_id,
-                    "name": restaurant_name,
-                    "cuisine": cuisine,
-                    "address": location,
-                })
                 existing_restaurant_ids.add(restaurant_id)
                 restaurants_added += 1
 
@@ -185,10 +136,9 @@ def get_orders_from_csv():
             if menu_key in menu_lookup:
                 existing_item = menu_lookup[menu_key]
                 existing_item["order_qty"] = int(existing_item.get("order_qty", 0)) + order_qty
-
-                existing_item["order_qty"] = existing_item.get("order_qty", 0) + order_qty
                 if price > 0:
                     existing_item["price"] = price
+                menu_items_updated += 1
             else:
                 new_item = {
                     "id": f"{restaurant_id}-{food_item.lower().replace(' ', '-')}",
@@ -201,10 +151,6 @@ def get_orders_from_csv():
                 menu_items.append(new_item)
                 menu_lookup[menu_key] = new_item
                 menu_items_added += 1
-                    "description": None,
-                }
-                menu_items.append(new_item)
-                menu_lookup[menu_key] = new_item
 
     save_restaurants(restaurants)
     save_menu_items(menu_items)
@@ -223,4 +169,3 @@ def get_orders_from_csv():
         "menu_items_updated": menu_items_updated,
         "rows_skipped": rows_skipped,
     }
-    return 0
