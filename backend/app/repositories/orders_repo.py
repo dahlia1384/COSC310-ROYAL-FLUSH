@@ -1,6 +1,7 @@
 from pathlib import Path
 import json, os
 from typing import List, Dict, Any
+from datetime import datetime
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "orders.json"
 
@@ -27,3 +28,30 @@ def has_unfinished_orders(restaurant_id: str) -> bool:
             return True
 
     return False
+
+def create_order(order_data: Dict[str, Any]) -> Dict[str, Any]: 
+    orders = load_all()
+    order_data["order_time"] = datetime.utcnow().isoformat()
+    orders.append(order_data)
+    save_all(orders)
+    return order_data
+
+def get_order_by_id(order_id: str) -> Dict[str, Any]:
+    for order in load_all():
+        if order.get("order_id") == order_id:
+            return order
+    return None
+
+#change customer_id data type to UUID
+def get_orders_by_customer(customer_id: str) -> List[Dict[str, Any]]:
+    return [o for o in load_all() if o.get("customer_id") == customer_id]
+
+def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
+    orders = load_all()
+    for order in orders:
+        if order.get("order_id") == order_id:
+            order["order_status"]=new_status
+            save_all(orders)
+            return order
+    return None
+       
