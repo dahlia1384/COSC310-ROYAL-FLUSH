@@ -22,7 +22,7 @@ def has_unfinished_orders(restaurant_id: str) -> bool:
     for order in load_all():
         if (
             order.get("restaurant_id") == restaurant_id
-            and str(order.get("status", "")).strip().lower() in unfinished_statuses
+            and str(order.get("order_status", "")).strip().lower() in unfinished_statuses
         ):
             return True
 
