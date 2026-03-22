@@ -10,7 +10,7 @@ from app.repositories.orders_repo import(
     )
 
 def create_new_order(payload: OrderCreate) -> Order:
-    order_data = payload.dict()
+    order_data = payload.model_dump()
     order_data["order_id"]= str (uuid.uuid4())
     order_data["order_status"] = "Order Created"
     created = create_order(order_data)
