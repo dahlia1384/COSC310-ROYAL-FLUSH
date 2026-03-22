@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.services.data_service import get_orders_from_csv
 
-router = APIRouter(prefix="/orders", tags=["data"])
+router = APIRouter(prefix="/orders_from_csv", tags=["data"])
 
 @router.post("/food-delivery")
 def food_delivery():

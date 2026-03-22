@@ -3,6 +3,8 @@ from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
+from app.repositories.orders_repo import has_unfinished_orders
+
 
 def list_restaurants(location: str | None = None, cuisine: str | None = None,min_rating: float | None = None) -> List[Restaurant]:
     restaurants = [Restaurant(**r) for r in load_all()]
@@ -34,9 +36,13 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
     if any(r.get("id") == new_id for r in restaurants):
         raise HTTPException(status_code=409, detail="ID collision; retry.")
 
+    stripped_name = payload.name.strip()
+    if not stripped_name:
+        raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
     new_restaurant = Restaurant(
         id=new_id,
-        name=payload.name.strip(),
+        name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
         rating=float(payload.rating) if payload.rating is not None else None,
@@ -55,9 +61,13 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
     restaurants = load_all()
     for idx, r in enumerate(restaurants):
         if r.get("id") == restaurant_id:
+            stripped_name = payload.name.strip()
+            if not stripped_name:
+                raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
             updated = Restaurant(
                 id=restaurant_id,
-                name=payload.name.strip(),
+                name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
                 rating=float(payload.rating) if payload.rating is not None else None,
@@ -69,7 +79,15 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
 
 def delete_restaurant(restaurant_id: str) -> None:
     restaurants = load_all()
-    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
-    if len(new_restaurants) == len(restaurants):
+
+    if not any(r.get("id") == restaurant_id for r in restaurants):
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+
+    if has_unfinished_orders(restaurant_id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Restaurant '{restaurant_id}' cannot be deleted because it has pending or active orders"
+        )
+
+    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
     save_all(new_restaurants)
