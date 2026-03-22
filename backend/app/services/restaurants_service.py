@@ -3,8 +3,9 @@ from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
+from app.repositories.menu_items_repo import load_all as load_all_menu_items
 
-def list_restaurants(location: str | None = None, cuisine: str | None = None,min_rating: float | None = None) -> List[Restaurant]:
+def list_restaurants(location: str | None = None, cuisine: str | None = None,min_rating: float | None = None, keyword: str | None = None) -> List[Restaurant]:
     restaurants = [Restaurant(**r) for r in load_all()]
 
     if location:
@@ -23,6 +24,13 @@ def list_restaurants(location: str | None = None, cuisine: str | None = None,min
         restaurants = [
             r for r in restaurants
             if r.rating is not None and r.rating >= min_rating
+        ]
+
+    if keyword:
+        menu_items = load_all_menu_items()
+        restaurants = [
+            r for r in restaurants
+            if matches_keyword(r, keyword, menu_items)
         ]
 
     return restaurants
@@ -73,3 +81,17 @@ def delete_restaurant(restaurant_id: str) -> None:
     if len(new_restaurants) == len(restaurants):
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
     save_all(new_restaurants)
+
+def matches_keyword(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> bool:
+    keyword = keyword.lower().strip()
+
+    if keyword in restaurant.name.lower():
+        return True
+
+    for item in menu_items:
+        if item.get("restaurant_id") == restaurant.id:
+            item_name = item.get("name", "")
+            if keyword in item_name.lower():
+                return True
+
+    return False
