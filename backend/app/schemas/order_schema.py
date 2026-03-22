@@ -1,16 +1,17 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field
+from typing import List
 from  datetime import datetime
 from uuid import UUID
-from typing import List
 
 class OrderItem(BaseModel):
     menu_item_id: int
-    quantity: Field(gt=0)
+    quantity: int = Field(gt=0)
 
 class OrderCreate(BaseModel):
     restaurant_id: int
     customer_id: UUID
-    items: List[OrderItem] = Field(min_item=1)
+    items: List[OrderItem] = Field(min_length=1)
+
 
 class Order(BaseModel):
     order_id: str
@@ -24,6 +25,5 @@ class OrderStatusUpdate(BaseModel):
     order_status: str = Field(min_length=1)
 
 
-    
 
 
