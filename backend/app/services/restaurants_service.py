@@ -1,4 +1,4 @@
-import uuid
+import uuid, re
 from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
@@ -7,19 +7,43 @@ from app.repositories.menu_items_repo import load_all as load_all_menu_items
 from app.repositories.orders_repo import has_unfinished_orders
 
 
-def matches_keyword(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> bool:
+def keyword_score(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> int:
     keyword = keyword.lower().strip()
+    score = 0
 
     if keyword in restaurant.name.lower():
-        return True
+        score += 3
 
     for item in menu_items:
         if item.get("restaurant_id") == restaurant.id:
             item_name = item.get("name", "")
             if keyword in item_name.lower():
-                return True
+                score += 1
 
-    return False
+    return score
+
+def extract_city_number(location: str) -> int | None:
+    match = re.search(r"city_(\d+)", location.strip().lower())
+    if match:
+        return int(match.group(1))
+    return None
+
+def estimate_delivery_time(restaurant: Restaurant, customer_location: str | None) -> int:
+    base_prep_time = 15
+
+    if not customer_location or not restaurant.address:
+        return base_prep_time + 15
+
+    restaurant_num = extract_city_number(restaurant.address)
+    customer_num = extract_city_number(customer_location)
+
+    if restaurant_num is None or customer_num is None:
+        if restaurant.address.strip().lower() == customer_location.strip().lower():
+            return base_prep_time + 10
+        return base_prep_time + 20
+
+    distance = abs(restaurant_num - customer_num)
+    return base_prep_time + 5 + (distance * 2)
 
 
 def list_restaurants(
@@ -27,8 +51,11 @@ def list_restaurants(
     cuisine: str | None = None,
     min_rating: float | None = None,
     keyword: str | None = None,
+    sort_by: str = "relevance",
+    customer_location: str | None = None,
 ) -> List[Restaurant]:
     restaurants = [Restaurant(**r) for r in load_all()]
+    relevance_scores: dict[str, int] = {}
 
     if location:
         restaurants = [
@@ -50,10 +77,30 @@ def list_restaurants(
 
     if keyword:
         menu_items = load_all_menu_items()
-        restaurants = [
-            r for r in restaurants
-            if matches_keyword(r, keyword, menu_items)
-        ]
+        filtered = []
+
+        for r in restaurants:
+            score = keyword_score(r, keyword, menu_items)
+            if score > 0:
+                filtered.append(r)
+                relevance_scores[r.id] = score
+
+        restaurants = filtered
+
+    if sort_by == "rating":
+        restaurants.sort(
+            key=lambda r: (r.rating is None, -(r.rating or 0))
+        )
+    elif sort_by == "delivery_time":
+        restaurants.sort(
+            key=lambda r: estimate_delivery_time(r, customer_location)
+        )
+    else:  # sort by relevance
+        if keyword:
+            restaurants.sort(
+                key=lambda r: relevance_scores.get(r.id, 0),
+                reverse=True
+            )
 
     return restaurants
 
@@ -74,7 +121,7 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
         name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
-        rating=float(payload.rating) if getattr(payload, "rating", None) is not None else None,
+        rating=float(payload.rating) if payload.rating is not None else None,
     )
     restaurants.append(new_restaurant.dict())
     save_all(restaurants)
@@ -102,7 +149,7 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
                 name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
-                rating=float(payload.rating) if getattr(payload, "rating", None) is not None else None,
+                rating=float(payload.rating) if payload.rating is not None else None
             )
             restaurants[idx] = updated.dict()
             save_all(restaurants)
