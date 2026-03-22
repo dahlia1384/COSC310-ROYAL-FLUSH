@@ -10,7 +10,7 @@ class OrderItem(BaseModel):
 class OrderCreate(BaseModel):
     restaurant_id: int
     customer_id: UUID
-    items: List[OrderItem]
+    items: List[OrderItem] = Field(min_length=1)
 
 class Order(BaseModel):
     order_id: str
