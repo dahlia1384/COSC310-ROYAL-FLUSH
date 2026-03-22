@@ -1,33 +1,28 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
 from  datetime import datetime
+from uuid import UUID
 
 class OrderItem(BaseModel):
     menu_item_id: int
-    quantity: int
+    quantity: int = Field(gt=0)
 
 class OrderCreate(BaseModel):
-    user_id: int
     restaurant_id: int
+    customer_id: UUID
     items: List[OrderItem]
 
 class Order(BaseModel):
-    id: int
-    user_id: int
+    order_id: str
     restaurant_id: int
+    customer_id: UUID
     items: List[OrderItem]
-    status: str
-    created_at: datetime
+    order_status: str
+    order_time: datetime
 
 class OrderStatusUpdate(BaseModel):
-    status: str
+    status: str = Field(min_length=1)
 
-class OrderResponse(BaseModel):
-    d: int
-    user_id: int
-    restaurant_id: int
-    status: str
-    created_at: datetime
-    
+
 
 
