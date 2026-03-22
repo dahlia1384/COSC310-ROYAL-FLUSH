@@ -1,16 +1,13 @@
-import os
-from typing import List
-
-import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-
-from app.routers.auth_router import router as auth_router
-from app.routers.data import router as data_router
-from app.routers.menu_items import router as menu_items_router
+from typing import List
 from app.routers.restaurants import router as restaurants_router
+from app.routers.menu_items import router as menu_items_router
+from app.routers.data import router as data_router
 from app.services.data_service import get_orders_from_csv
-
+from app.routers.auth_router import router as auth_router
+import httpx
+import os
 
 app = FastAPI(title="Backend Service")
 
@@ -41,13 +38,16 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
 
 @app.post("/place-order")
 async def place_order(order: OrderRequest):
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
+
+            # call price service
             price_response = await client.post(
                 f"{PRICE_SERVICE}/calculate",
                 json=order.model_dump()
@@ -55,6 +55,7 @@ async def place_order(order: OrderRequest):
             price_response.raise_for_status()
             price_data = price_response.json()
 
+            # send notification
             await client.post(
                 f"{NOTIFICATION_SERVICE}/send",
                 json={
@@ -77,7 +78,6 @@ async def place_order(order: OrderRequest):
         raise HTTPException(status_code=503, detail="Service unavailable")
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="Service timeout")
-
 
 app.include_router(restaurants_router)
 app.include_router(menu_items_router)

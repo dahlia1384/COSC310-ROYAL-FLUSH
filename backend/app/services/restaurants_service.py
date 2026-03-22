@@ -4,8 +4,30 @@ from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
 from app.repositories.menu_items_repo import load_all as load_all_menu_items
+from app.repositories.orders_repo import has_unfinished_orders
 
-def list_restaurants(location: str | None = None, cuisine: str | None = None,min_rating: float | None = None, keyword: str | None = None) -> List[Restaurant]:
+
+def matches_keyword(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> bool:
+    keyword = keyword.lower().strip()
+
+    if keyword in restaurant.name.lower():
+        return True
+
+    for item in menu_items:
+        if item.get("restaurant_id") == restaurant.id:
+            item_name = item.get("name", "")
+            if keyword in item_name.lower():
+                return True
+
+    return False
+
+
+def list_restaurants(
+    location: str | None = None,
+    cuisine: str | None = None,
+    min_rating: float | None = None,
+    keyword: str | None = None,
+) -> List[Restaurant]:
     restaurants = [Restaurant(**r) for r in load_all()]
 
     if location:
@@ -23,7 +45,7 @@ def list_restaurants(location: str | None = None, cuisine: str | None = None,min
     if min_rating is not None:
         restaurants = [
             r for r in restaurants
-            if r.rating is not None and r.rating >= min_rating
+            if getattr(r, "rating", None) is not None and r.rating >= min_rating
         ]
 
     if keyword:
@@ -35,6 +57,7 @@ def list_restaurants(location: str | None = None, cuisine: str | None = None,min
 
     return restaurants
 
+
 def create_restaurant(payload: RestaurantCreate) -> Restaurant:
     restaurants = load_all()
     new_id = str(uuid.uuid4())
@@ -42,16 +65,21 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
     if any(r.get("id") == new_id for r in restaurants):
         raise HTTPException(status_code=409, detail="ID collision; retry.")
 
+    stripped_name = payload.name.strip()
+    if not stripped_name:
+        raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
     new_restaurant = Restaurant(
         id=new_id,
-        name=payload.name.strip(),
+        name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
-        rating=float(payload.rating) if payload.rating is not None else None,
+        rating=float(payload.rating) if getattr(payload, "rating", None) is not None else None,
     )
     restaurants.append(new_restaurant.dict())
     save_all(restaurants)
     return new_restaurant
+
 
 def get_restaurant_by_id(restaurant_id: str) -> Restaurant:
     for r in load_all():
@@ -59,39 +87,41 @@ def get_restaurant_by_id(restaurant_id: str) -> Restaurant:
             return Restaurant(**r)
     raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
 
+
 def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaurant:
     restaurants = load_all()
+
     for idx, r in enumerate(restaurants):
         if r.get("id") == restaurant_id:
+            stripped_name = payload.name.strip()
+            if not stripped_name:
+                raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
+
             updated = Restaurant(
                 id=restaurant_id,
-                name=payload.name.strip(),
+                name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
-                rating=float(payload.rating) if payload.rating is not None else None,
+                rating=float(payload.rating) if getattr(payload, "rating", None) is not None else None,
             )
             restaurants[idx] = updated.dict()
             save_all(restaurants)
             return updated
+
     raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+
 
 def delete_restaurant(restaurant_id: str) -> None:
     restaurants = load_all()
-    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
-    if len(new_restaurants) == len(restaurants):
+
+    if not any(r.get("id") == restaurant_id for r in restaurants):
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+
+    if has_unfinished_orders(restaurant_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete restaurant with pending or active orders."
+        )
+
+    new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
     save_all(new_restaurants)
-
-def matches_keyword(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> bool:
-    keyword = keyword.lower().strip()
-
-    if keyword in restaurant.name.lower():
-        return True
-
-    for item in menu_items:
-        if item.get("restaurant_id") == restaurant.id:
-            item_name = item.get("name", "")
-            if keyword in item_name.lower():
-                return True
-
-    return False
