@@ -21,7 +21,7 @@ class Order(BaseModel):
     order_time: datetime
 
 class OrderStatusUpdate(BaseModel):
-    status: str = Field(min_length=1)
+    order_status: str = Field(min_length=1)
 
 
 
