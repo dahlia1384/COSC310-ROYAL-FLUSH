@@ -25,7 +25,7 @@ def test_create_order(monkeypatch):
     monkeypatch.setattr(order_services,"create_order",lambda x: {**x, "order_time": "2024-04-12T00:00:00"})
     order = order_services.create_new_order(OrderCreate(**VALID_PAYLOAD))
     assert order.order_status == "Order Created"
-    assert order.order_time == "2024-04-12T00:00:00"
+    assert order.order_time.isoformat() == "2024-04-12T00:00:00"
 
 def test_get_order(monkeypatch):
     fake_order = {
