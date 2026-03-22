@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, UTC
 
 app = FastAPI(title="Notification Service")
 
@@ -18,6 +18,13 @@ class StatusChangeNotificationRequest(BaseModel):
     order_id: int
     old_status: str = Field(..., min_length=1)
     new_status: str = Field(..., min_length=1)
+
+
+class ManagerAlertRequest(BaseModel):
+    manager_id: int
+    order_id: int
+    customer_id: int
+    message: Optional[str] = None
 
 
 class Notification(BaseModel):
@@ -58,7 +65,7 @@ def create_notification(
         old_status=old_status,
         new_status=new_status,
         is_read=False,
-        created_at=datetime.utcnow().isoformat() + "Z"
+        created_at=datetime.now(UTC).isoformat()
     )
 
     notifications_db.append(notification)
@@ -93,17 +100,32 @@ def send_general_notification(data: GeneralNotificationRequest):
 
 @app.post("/notify-status-change")
 def notify_status_change(data: StatusChangeNotificationRequest):
-    title = "Order Status Updated"
-    message = f"Your order #{data.order_id} status changed from {data.old_status} to {data.new_status}."
-
     notification = create_notification(
         user_id=data.user_id,
-        title=title,
-        message=message,
+        title="Order Status Updated",
+        message=f"Your order #{data.order_id} status changed from {data.old_status} to {data.new_status}.",
         notification_type="order_status_update",
         order_id=data.order_id,
         old_status=data.old_status,
         new_status=data.new_status
+    )
+
+    return {
+        "status": "notification sent",
+        "notification": notification.model_dump()
+    }
+
+
+@app.post("/notify-new-order")
+def notify_new_order(data: ManagerAlertRequest):
+    message = data.message or f"New order #{data.order_id} was placed by customer #{data.customer_id}."
+
+    notification = create_notification(
+        user_id=data.manager_id,
+        title="New Order Alert",
+        message=message,
+        notification_type="manager_new_order_alert",
+        order_id=data.order_id
     )
 
     return {
