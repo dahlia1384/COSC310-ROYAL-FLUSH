@@ -20,6 +20,26 @@ class StatusChangeNotificationRequest(BaseModel):
     new_status: str = Field(..., min_length=1)
 
 
+class ManagerAlertRequest(BaseModel):
+    manager_id: int
+    order_id: int
+    customer_id: int
+    message: Optional[str] = None
+
+
+class NotificationPreference(BaseModel):
+    user_id: int
+    order_status_updates: bool = True
+    promotions: bool = True
+    general_notifications: bool = True
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    order_status_updates: Optional[bool] = None
+    promotions: Optional[bool] = None
+    general_notifications: Optional[bool] = None
+
+
 class Notification(BaseModel):
     notification_id: int
     user_id: int
@@ -34,7 +54,27 @@ class Notification(BaseModel):
 
 
 notifications_db: List[Notification] = []
+preferences_db: dict[int, NotificationPreference] = {}
 next_notification_id = 1
+
+
+def get_or_create_preferences(user_id: int) -> NotificationPreference:
+    if user_id not in preferences_db:
+        preferences_db[user_id] = NotificationPreference(user_id=user_id)
+    return preferences_db[user_id]
+
+
+def notification_allowed(user_id: int, notification_type: str) -> bool:
+    prefs = get_or_create_preferences(user_id)
+
+    if notification_type == "order_status_update":
+        return prefs.order_status_updates
+    if notification_type == "promo_update":
+        return prefs.promotions
+    if notification_type == "general":
+        return prefs.general_notifications
+
+    return True
 
 
 def create_notification(
@@ -76,8 +116,38 @@ def health():
     return {"status": "healthy"}
 
 
+@app.get("/users/{user_id}/preferences")
+def get_user_preferences(user_id: int):
+    return get_or_create_preferences(user_id).model_dump()
+
+
+@app.put("/users/{user_id}/preferences")
+def update_user_preferences(user_id: int, data: NotificationPreferenceUpdate):
+    prefs = get_or_create_preferences(user_id)
+
+    if data.order_status_updates is not None:
+        prefs.order_status_updates = data.order_status_updates
+    if data.promotions is not None:
+        prefs.promotions = data.promotions
+    if data.general_notifications is not None:
+        prefs.general_notifications = data.general_notifications
+
+    preferences_db[user_id] = prefs
+    return {
+        "status": "preferences updated",
+        "preferences": prefs.model_dump()
+    }
+
+
 @app.post("/send-general")
 def send_general_notification(data: GeneralNotificationRequest):
+    if not notification_allowed(data.user_id, data.type):
+        return {
+            "status": "notification blocked by user preferences",
+            "user_id": data.user_id,
+            "type": data.type
+        }
+
     notification = create_notification(
         user_id=data.user_id,
         title=data.title,
@@ -93,17 +163,39 @@ def send_general_notification(data: GeneralNotificationRequest):
 
 @app.post("/notify-status-change")
 def notify_status_change(data: StatusChangeNotificationRequest):
-    title = "Order Status Updated"
-    message = f"Your order #{data.order_id} status changed from {data.old_status} to {data.new_status}."
+    if not notification_allowed(data.user_id, "order_status_update"):
+        return {
+            "status": "notification blocked by user preferences",
+            "user_id": data.user_id,
+            "type": "order_status_update"
+        }
 
     notification = create_notification(
         user_id=data.user_id,
-        title=title,
-        message=message,
+        title="Order Status Updated",
+        message=f"Your order #{data.order_id} status changed from {data.old_status} to {data.new_status}.",
         notification_type="order_status_update",
         order_id=data.order_id,
         old_status=data.old_status,
         new_status=data.new_status
+    )
+
+    return {
+        "status": "notification sent",
+        "notification": notification.model_dump()
+    }
+
+
+@app.post("/notify-new-order")
+def notify_new_order(data: ManagerAlertRequest):
+    message = data.message or f"New order #{data.order_id} was placed by customer #{data.customer_id}."
+
+    notification = create_notification(
+        user_id=data.manager_id,
+        title="New Order Alert",
+        message=message,
+        notification_type="manager_new_order_alert",
+        order_id=data.order_id
     )
 
     return {
