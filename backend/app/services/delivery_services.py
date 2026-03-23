@@ -11,7 +11,7 @@ def create_new_delivery(order_data: dict) -> Delivery:
 
     delivery data = {
         "order_id": order_data["order_id"],
-        "restaurant_id: order_data["restaurant_id"],
+        "restaurant_id": order_data["restaurant_id"],
         "delivery_status": "Preparing Order",
         "delivery_method": method,
         "delivery_time": datetime.utcnow().isoformat() }
