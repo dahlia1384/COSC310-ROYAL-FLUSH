@@ -255,4 +255,8 @@ def test_missing_required_headers_raises_error(monkeypatch, tmp_path):
     monkeypatch.setattr(data_service, "save_menu_items", lambda m: None)
 
     with pytest.raises(ValueError):
+<<<<<<< HEAD
         data_service.get_orders_from_csv() # checks that a missing required header causes a ValueError
+=======
+        data_service.get_orders_from_csv() # checks that a missing required header causes a ValueError
+>>>>>>> 4e06249ccb96111f5e8a6411d771838c904027a8

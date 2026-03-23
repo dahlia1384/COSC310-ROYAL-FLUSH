@@ -280,6 +280,7 @@ def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
         restaurants_service.delete_restaurant("r1")
 
     assert exc.value.status_code == 400  # checks that deletion is blocked for active orders too
+<<<<<<< HEAD
     assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
 
 def test_search_by_restaurant_name(monkeypatch):
@@ -391,3 +392,6 @@ def test_search_with_cuisine_filter(monkeypatch):
     results = restaurants_service.list_restaurants(keyword="sushi", cuisine="Japanese")
 
     assert all(r.cuisine == "Japanese" for r in results)
+=======
+    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+>>>>>>> 4e06249ccb96111f5e8a6411d771838c904027a8
