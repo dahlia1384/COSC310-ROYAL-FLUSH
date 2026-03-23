@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from datetime import datetime
 from app.schemas.delivery_schema import Delivery
 from app.repositories.delivery_repo import(
     create_delivery,
@@ -9,7 +10,7 @@ from app.repositories.delivery_repo import(
 def create_new_delivery(order_data: dict) -> Delivery:
     method = order_data.get("delivery_method", "Unknown").capitalize()
 
-    delivery data = {
+    delivery_data = {
         "order_id": order_data["order_id"],
         "restaurant_id": order_data["restaurant_id"],
         "delivery_status": "Preparing Order",
@@ -20,7 +21,7 @@ def create_new_delivery(order_data: dict) -> Delivery:
     return Delivery(**created)
 
 def get_delivery(order_id: str) -> Delivery:
-    delivery = get_delivery_by_id(order_id)
+    delivery = get_delivery_by_order_id(order_id)
     if not delivery:
         raise HTTPException(status_code = 404, detail = "Delivery Not Found")
     return Delivery(**delivery)
