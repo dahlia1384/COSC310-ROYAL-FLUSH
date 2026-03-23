@@ -70,5 +70,11 @@
     "name": "Trattoria Romano",
     "cuisine": "Italian",
     "address": "City_9"
+  },
+  {
+    "id": "5cd46ba9-72ac-48c8-9ce8-1b18b5dfae29",
+    "name": "Bing",
+    "cuisine": "Chinese",
+    "address": "Veda"
   }
 ]

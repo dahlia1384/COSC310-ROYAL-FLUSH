@@ -13,7 +13,7 @@ class OrderItem(BaseModel):
 
 
 class OrderRequest(BaseModel):
-    user_id: int
+    user_id: str
     items: List[OrderItem]
     promo_code: Optional[str] = None
     tax_rate: Optional[float] = Field(default=0.05, ge=0)
