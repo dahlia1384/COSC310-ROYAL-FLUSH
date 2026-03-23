@@ -18,12 +18,12 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
     os.replace(tmp, DATA_PATH)
 
 def has_unfinished_orders(restaurant_id: str) -> bool:
-    unfinished_statuses = {"pending", "active"}
+    unfinished_statuses = {"Order Created", "Preparing Order", "Order Out for Delivery"}
 
     for order in load_all():
         if (
             order.get("restaurant_id") == restaurant_id
-            and str(order.get("order_status", "")).strip().lower() in unfinished_statuses
+            and order.get("order_status", "") in unfinished_statuses
         ):
             return True
 
@@ -42,9 +42,8 @@ def get_order_by_id(order_id: str) -> Dict[str, Any]:
             return order
     return None
 
-#change customer_id data type to UUID
 def get_orders_by_customer(customer_id: str) -> List[Dict[str, Any]]:
-    return [o for o in load_all() if o.get("customer_id") == customer_id]
+    return [o for o in load_all() if str(o.get("customer_id")) == str(customer_id)]
 
 def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
     orders = load_all()
@@ -54,4 +53,3 @@ def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
             save_all(orders)
             return order
     return None
-       

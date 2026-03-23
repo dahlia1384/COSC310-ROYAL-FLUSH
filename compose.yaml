@@ -28,6 +28,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   price_service:
     build: ./backend/app/price_service
@@ -41,3 +42,4 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped

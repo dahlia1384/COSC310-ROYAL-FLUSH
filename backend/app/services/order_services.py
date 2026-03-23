@@ -10,7 +10,7 @@ from app.repositories.orders_repo import(
     )
 
 def create_new_order(payload: OrderCreate) -> Order:
-    order_data = payload.dict()
+    order_data = payload.model_dump()
     order_data["order_id"]= str (uuid.uuid4())
     order_data["order_status"] = "Order Created"
     created = create_order(order_data)
@@ -31,10 +31,10 @@ def change_order_status(order_id: str, status: str) -> Order:
     if not order:
         raise HTTPException(status_code = 404, detail = "Order Not Found") 
     
-    if order.get("order_status") == "delivered":
+    if order.get("order_status") == "Order Delivered":
         raise HTTPException(status_code = 400, detail= "Can't modify delivered order")
 
-    updated = updated_order_status(order_id, status)
+    updated = update_order_status(order_id, status)
     return Order(**updated)
 
 
