@@ -20,10 +20,14 @@ def create_menu_item(restaurant_id: str, payload: MenuItemCreate) -> MenuItem:
     if any(it.get("id") == new_id for it in items):
         raise HTTPException(status_code=409, detail="ID collision; retry.")
 
+    stripped_name = payload.name.strip()
+    if not stripped_name:
+        raise HTTPException(status_code=400, detail="Menu item name cannot be empty.")
+
     new_item = MenuItem(
         id=new_id,
         restaurant_id=restaurant_id,
-        name=payload.name.strip(),
+        name=stripped_name,
         price=float(payload.price),
         order_qty=int(payload.order_qty),
         description=payload.description.strip() if payload.description else None
@@ -42,10 +46,14 @@ def update_menu_item(menu_item_id: str, payload: MenuItemUpdate) -> MenuItem:
     items = load_all()
     for idx, it in enumerate(items):
         if it.get("id") == menu_item_id:
+            stripped_name = payload.name.strip()
+            if not stripped_name:
+                raise HTTPException(status_code=400, detail="Menu item name cannot be empty.")
+
             updated = MenuItem(
                 id=menu_item_id,
                 restaurant_id=it["restaurant_id"],
-                name=payload.name.strip(),
+                name=stripped_name,
                 price=float(payload.price),
                 order_qty=int(payload.order_qty),
                 description=payload.description.strip() if payload.description else None
