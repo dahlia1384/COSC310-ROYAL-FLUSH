@@ -22,11 +22,7 @@ class Item(BaseModel):
 
 
 class OrderRequest(BaseModel):
-<<<<<<< HEAD
     user_id: int
-=======
-    user_id: str
->>>>>>> 4e06249ccb96111f5e8a6411d771838c904027a8
     items: List[Item]
 
 
@@ -86,8 +82,4 @@ async def place_order(order: OrderRequest):
 app.include_router(restaurants_router)
 app.include_router(menu_items_router)
 app.include_router(data_router)
-<<<<<<< HEAD
 app.include_router(auth_router)
-=======
-app.include_router(auth_router)
->>>>>>> 4e06249ccb96111f5e8a6411d771838c904027a8

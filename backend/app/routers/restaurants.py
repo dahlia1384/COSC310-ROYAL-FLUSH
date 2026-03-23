@@ -18,7 +18,7 @@ def get_restaurants(
     min_rating: float | None = Query(default=None, ge=0, le=5),
     keyword: str | None = None
 ):
-    return list_restaurants_service()(
+    return list_restaurants_service(
         location=location,
         cuisine=cuisine,
         min_rating=min_rating,

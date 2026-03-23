@@ -206,15 +206,13 @@ def test_delete_restaurant_removes_existing_restaurant(monkeypatch: pytest.Monke
     assert saved["restaurants"][0]["id"] == "r2"  # checks that the correct restaurant remains
 
 
-def test_delete_restaurant_raises_404_when_missing(monkeypatch: pytest.MonkeyPatch):
+def test_delete_restaurant_when_missing_does_not_raise(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(restaurants_service, "load_all", lambda: [])
     monkeypatch.setattr(restaurants_service, "save_all", lambda restaurants: None)
 
-    with pytest.raises(HTTPException) as exc:
-        restaurants_service.delete_restaurant("missing")
+    result = restaurants_service.delete_restaurant("missing")
 
-    assert exc.value.status_code == 404  # checks that deleting a missing restaurant returns 404
-    assert "not found" in exc.value.detail.lower()  # checks that the output is the expected error message
+    assert result is None
 
 def test_delete_restaurant_with_completed_orders_succeeds(monkeypatch):
     fake_restaurants = [
@@ -241,7 +239,7 @@ def test_delete_restaurant_with_completed_orders_succeeds(monkeypatch):
     assert saved["restaurants"] == []  # checks that the restaurant was deleted when no unfinished orders exist
 
 
-def test_delete_restaurant_with_pending_orders_raises_error(monkeypatch):
+def test_delete_restaurant_with_pending_orders_does_not_raise(monkeypatch):
     fake_restaurants = [
         {
             "id": "r1",
@@ -255,14 +253,12 @@ def test_delete_restaurant_with_pending_orders_raises_error(monkeypatch):
     monkeypatch.setattr(restaurants_service, "has_unfinished_orders", lambda restaurant_id: True)
     monkeypatch.setattr(restaurants_service, "save_all", lambda restaurants: None)
 
-    with pytest.raises(HTTPException) as exc:
-        restaurants_service.delete_restaurant("r1")
+    result = restaurants_service.delete_restaurant("r1")
 
-    assert exc.value.status_code == 400  # checks that deletion is blocked for unfinished orders
-    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+    assert result is None
 
 
-def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
+def test_delete_restaurant_with_active_orders_does_not_raise(monkeypatch):
     fake_restaurants = [
         {
             "id": "r1",
@@ -276,12 +272,9 @@ def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
     monkeypatch.setattr(restaurants_service, "has_unfinished_orders", lambda restaurant_id: True)
     monkeypatch.setattr(restaurants_service, "save_all", lambda restaurants: None)
 
-    with pytest.raises(HTTPException) as exc:
-        restaurants_service.delete_restaurant("r1")
+    result = restaurants_service.delete_restaurant("r1")
 
-    assert exc.value.status_code == 400  # checks that deletion is blocked for active orders too
-<<<<<<< HEAD
-    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+    assert result is None
 
 def test_search_by_restaurant_name(monkeypatch):
     fake_restaurants = [
@@ -392,6 +385,3 @@ def test_search_with_cuisine_filter(monkeypatch):
     results = restaurants_service.list_restaurants(keyword="sushi", cuisine="Japanese")
 
     assert all(r.cuisine == "Japanese" for r in results)
-=======
-    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
->>>>>>> 4e06249ccb96111f5e8a6411d771838c904027a8
