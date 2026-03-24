@@ -53,4 +53,3 @@ def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
             save_all(orders)
             return order
     return None
-       

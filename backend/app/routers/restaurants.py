@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Query
 from typing import List
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.services.restaurants_service import (
@@ -12,8 +12,16 @@ from app.services.restaurants_service import (
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 
 @router.get("", response_model=List[Restaurant])
-def list_restaurants():
-    return list_restaurants_service()
+def get_restaurants(
+    location: str | None = None,
+    cuisine: str | None = None,
+    min_rating: float | None = Query(default=None, ge=0, le=5)
+):
+    return list_restaurants_service(
+        location=location,
+        cuisine=cuisine,
+        min_rating=min_rating
+    )
 
 @router.post("", response_model=Restaurant, status_code=status.HTTP_201_CREATED)
 def create_restaurant(payload: RestaurantCreate):

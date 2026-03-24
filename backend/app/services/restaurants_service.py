@@ -5,8 +5,29 @@ from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdat
 from app.repositories.restaurants_repo import load_all, save_all
 from app.repositories.orders_repo import has_unfinished_orders
 
-def list_restaurants() -> List[Restaurant]:
-    return [Restaurant(**r) for r in load_all()]
+
+def list_restaurants(location: str | None = None, cuisine: str | None = None,min_rating: float | None = None) -> List[Restaurant]:
+    restaurants = [Restaurant(**r) for r in load_all()]
+
+    if location:
+        restaurants = [
+            r for r in restaurants
+            if r.address and location.lower() in r.address.lower()
+        ]
+
+    if cuisine:
+        restaurants = [
+            r for r in restaurants
+            if r.cuisine and cuisine.lower() == r.cuisine.lower()
+        ]
+
+    if min_rating is not None:
+        restaurants = [
+            r for r in restaurants
+            if r.rating is not None and r.rating >= min_rating
+        ]
+
+    return restaurants
 
 def create_restaurant(payload: RestaurantCreate) -> Restaurant:
     restaurants = load_all()
@@ -24,6 +45,7 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
         name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
+        rating=float(payload.rating) if payload.rating is not None else None,
     )
     restaurants.append(new_restaurant.dict())
     save_all(restaurants)
@@ -48,6 +70,7 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
                 name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
+                rating=float(payload.rating) if payload.rating is not None else None,
             )
             restaurants[idx] = updated.dict()
             save_all(restaurants)
