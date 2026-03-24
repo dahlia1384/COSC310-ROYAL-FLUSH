@@ -24,7 +24,7 @@ class Item(BaseModel):
 
 
 class OrderRequest(BaseModel):
-    user_id: str
+    user_id: int
     items: List[Item]
 
 

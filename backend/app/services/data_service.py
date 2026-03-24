@@ -46,16 +46,13 @@ def _parse_int(value: Any, default: int = 0) -> int:
 
 
 def _validate_required_headers(fieldnames):
-    # Raises a ValueError if the CSV is missing any required column headers
-
     actual_headers = set(fieldnames or [])
     missing_headers = REQUIRED_HEADERS - actual_headers
     if missing_headers:
         raise ValueError(f"CSV is missing required headers: {sorted(missing_headers)}")
 
-def _build_menu_lookup(menu_items):
-    # builds a lookup dictionary to keep track of existing recorded orders for each menu item 
 
+def _build_menu_lookup(menu_items):
     menu_lookup = {}
     for item in menu_items:
         key = (_clean_str(item.get("restaurant_id")), _clean_str(item.get("name")))
@@ -64,8 +61,6 @@ def _build_menu_lookup(menu_items):
 
 
 def get_orders_from_csv():
-    # Reads orders from the CSV file and then updates the appropriate JSON files accordingly
-
     restaurants = load_restaurants()
     menu_items = load_menu_items()
 
