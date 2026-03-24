@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Query
 from typing import List
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.services.restaurants_service import (

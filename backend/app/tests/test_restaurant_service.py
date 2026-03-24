@@ -213,8 +213,8 @@ def test_delete_restaurant_raises_404_when_missing(monkeypatch: pytest.MonkeyPat
     with pytest.raises(HTTPException) as exc:
         restaurants_service.delete_restaurant("missing")
 
-    assert exc.value.status_code == 404  # checks that deleting a missing restaurant returns 404
-    assert "not found" in exc.value.detail.lower()  # checks that the output is the expected error message
+    assert exc.value.status_code == 404
+    assert "not found" in exc.value.detail.lower()
 
 def test_delete_restaurant_with_completed_orders_succeeds(monkeypatch):
     fake_restaurants = [
@@ -258,8 +258,8 @@ def test_delete_restaurant_with_pending_orders_raises_error(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         restaurants_service.delete_restaurant("r1")
 
-    assert exc.value.status_code == 400  # checks that deletion is blocked for unfinished orders
-    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+    assert exc.value.status_code == 400
+    assert "cannot be deleted" in exc.value.detail.lower()
 
 
 def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
@@ -279,5 +279,5 @@ def test_delete_restaurant_with_active_orders_raises_error(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         restaurants_service.delete_restaurant("r1")
 
-    assert exc.value.status_code == 400  # checks that deletion is blocked for active orders too
-    assert "pending or active orders" in exc.value.detail.lower()  # checks the error message
+    assert exc.value.status_code == 400
+    assert "cannot be deleted" in exc.value.detail.lower()
