@@ -3,6 +3,7 @@ from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
+from app.repositories.orders_repo import has_unfinished_orders
 from app.repositories.menu_items_repo import load_all as load_all_menu_items
 from app.repositories.orders_repo import has_unfinished_orders
 
@@ -167,7 +168,7 @@ def delete_restaurant(restaurant_id: str) -> None:
     if has_unfinished_orders(restaurant_id):
         raise HTTPException(
             status_code=400,
-            detail="Cannot delete restaurant with pending or active orders."
+            detail=f"Restaurant '{restaurant_id}' cannot be deleted because it has pending or active orders"
         )
 
     new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]

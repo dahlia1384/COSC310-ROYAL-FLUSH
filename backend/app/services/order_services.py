@@ -31,10 +31,10 @@ def change_order_status(order_id: str, status: str) -> Order:
     if not order:
         raise HTTPException(status_code = 404, detail = "Order Not Found") 
     
-    if order.get("order_status") == "delivered":
+    if order.get("order_status") == "Order Delivered":
         raise HTTPException(status_code = 400, detail= "Can't modify delivered order")
 
-    updated = updated_order_status(order_id, status)
+    updated = update_order_status(order_id, status)
     return Order(**updated)
 
 
