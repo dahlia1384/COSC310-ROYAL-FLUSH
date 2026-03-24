@@ -19,7 +19,6 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
 
 def has_unfinished_orders(restaurant_id: str) -> bool:
     unfinished_statuses = {"Order Created", "Preparing Order", "Order Out for Delivery"}
-
     for order in load_all():
         if (
             order.get("restaurant_id") == restaurant_id

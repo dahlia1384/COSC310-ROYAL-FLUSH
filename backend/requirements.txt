@@ -9,5 +9,3 @@ passlib[bcrypt]
 PyJWT
 bcrypt
 email-validator
-pydantic
-pytest

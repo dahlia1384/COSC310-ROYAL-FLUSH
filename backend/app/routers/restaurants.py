@@ -15,12 +15,14 @@ router = APIRouter(prefix="/restaurants", tags=["restaurants"])
 def get_restaurants(
     location: str | None = None,
     cuisine: str | None = None,
-    min_rating: float | None = Query(default=None, ge=0, le=5)
+    min_rating: float | None = Query(default=None, ge=0, le=5),
+    keyword: str | None = None
 ):
     return list_restaurants_service(
         location=location,
         cuisine=cuisine,
-        min_rating=min_rating
+        min_rating=min_rating,
+        keyword=keyword
     )
 
 @router.post("", response_model=Restaurant, status_code=status.HTTP_201_CREATED)
