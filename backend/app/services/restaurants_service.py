@@ -5,7 +5,6 @@ from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdat
 from app.repositories.restaurants_repo import load_all, save_all
 from app.repositories.orders_repo import has_unfinished_orders
 from app.repositories.menu_items_repo import load_all as load_all_menu_items
-from app.repositories.orders_repo import has_unfinished_orders
 
 
 def matches_keyword(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> bool:
