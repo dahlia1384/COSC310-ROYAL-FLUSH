@@ -8,7 +8,7 @@ def create_payment_attempt(db: Session, payment_attempt: PaymentAttempt) -> Paym
     db.refresh(payment_attempt)
     return payment_attempt
 
-
+# Counts how many times this order has already been paid.
 def count_attempts_by_order_id(db: Session, order_id: str) -> int:
     return (
         db.query(PaymentAttempt)
@@ -16,7 +16,7 @@ def count_attempts_by_order_id(db: Session, order_id: str) -> int:
         .count()
     )
 
-
+# Returns all attempts for one order.
 def get_attempts_by_order_id(db: Session, order_id: str) -> list[PaymentAttempt]:
     return (
         db.query(PaymentAttempt)
