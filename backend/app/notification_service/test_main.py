@@ -1,12 +1,13 @@
 from fastapi.testclient import TestClient
-from app.main import app, notifications_db
-from app.main import app, notifications_db, preferences_db
+import app.notification_service.app.main as notification_main
 
-client = TestClient(app)
+client = TestClient(notification_main.app)
 
 
 def setup_function():
-    notifications_db.clear()
+    notification_main.notifications_db.clear()
+    notification_main.preferences_db.clear()
+    notification_main.next_notification_id = 1
 
 
 def test_send_general_notification():
