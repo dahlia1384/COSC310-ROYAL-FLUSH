@@ -28,6 +28,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+<<<<<<< HEAD
+=======
+    restart: unless-stopped
+>>>>>>> origin/main
 
   price_service:
     build: ./backend/app/price_service
@@ -40,4 +44,9 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
       timeout: 5s
+<<<<<<< HEAD
       retries: 5
+=======
+      retries: 5
+    restart: unless-stopped
+>>>>>>> origin/main

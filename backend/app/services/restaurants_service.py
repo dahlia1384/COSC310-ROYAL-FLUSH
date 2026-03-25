@@ -3,9 +3,13 @@ from typing import List
 from fastapi import HTTPException
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
 from app.repositories.restaurants_repo import load_all, save_all
+<<<<<<< HEAD
 from app.repositories.orders_repo import has_unfinished_orders
 from app.repositories.menu_items_repo import load_all as load_all_menu_items
+=======
+>>>>>>> origin/main
 from app.repositories.orders_repo import has_unfinished_orders
+from app.repositories.menu_items_repo import load_all as load_all_menu_items
 
 
 def keyword_score(restaurant: Restaurant, keyword: str, menu_items: list[dict]) -> int:
@@ -161,6 +165,7 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
 
 def delete_restaurant(restaurant_id: str) -> None:
     restaurants = load_all()
+<<<<<<< HEAD
 
     if not any(r.get("id") == restaurant_id for r in restaurants):
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
@@ -171,5 +176,7 @@ def delete_restaurant(restaurant_id: str) -> None:
             detail=f"Restaurant '{restaurant_id}' cannot be deleted because it has pending or active orders"
         )
 
+=======
+>>>>>>> origin/main
     new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]
     save_all(new_restaurants)

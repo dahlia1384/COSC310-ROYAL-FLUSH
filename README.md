@@ -30,12 +30,25 @@ extensibility make this architecture appropriate for the food delivery system.
 
 ```
 backend/
-└── app/  
-    ├── api
-    ├── models
-    ├── schemas
-    ├── services
-    └── core
+└── app/
+    ├── data/
+    │   └── (JSON data files)
+    ├── models/
+    ├── notification_service/
+    │   └── app/
+    │       ├── main.py
+    │       └── test_main.py
+    ├── price_service/
+    │   └── app/
+    │       ├── main.py
+    │       ├── test_main.py
+    │       └── menu_items.json
+    ├── repositories/
+    ├── routers/
+    ├── schemas/
+    ├── services/
+    ├── tests/
+    └── main.py
 ```
 
 

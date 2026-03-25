@@ -19,7 +19,10 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
 
 def has_unfinished_orders(restaurant_id: str) -> bool:
     unfinished_statuses = {"Order Created", "Preparing Order", "Order Out for Delivery"}
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
     for order in load_all():
         if (
             order.get("restaurant_id") == restaurant_id
@@ -53,4 +56,7 @@ def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
             save_all(orders)
             return order
     return None
+<<<<<<< HEAD
        
+=======
+>>>>>>> origin/main
