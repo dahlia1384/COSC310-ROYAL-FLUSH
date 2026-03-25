@@ -55,7 +55,7 @@ def test_create_menu_item_adds_new_item(monkeypatch):
 
     item = menu_items_service.create_menu_item("r1", payload)
 
-    assert item.restaurant_id == "r1
+    assert item.restaurant_id == "r1"
     assert item.name == "Butter Chicken"
     assert item.description == "classic dish"
     assert len(saved["items"]) == 1
