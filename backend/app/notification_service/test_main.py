@@ -9,7 +9,6 @@ def setup_function():
     notification_main.preferences_db.clear()
     notification_main.next_notification_id = 1
 
-
 def test_send_general_notification():
     payload = {
         "user_id": 1,
@@ -82,7 +81,7 @@ def test_mark_notification_as_read():
     assert response.status_code == 200
     assert response.json()["status"] == "notification marked as read"
     assert response.json()["notification"]["is_read"] is True
-    preferences_db.clear()
+    notification_main.preferences_db.clear()
 
 
 def test_get_default_preferences():
