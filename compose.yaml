@@ -28,57 +28,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   price_service:
     build: ./backend/app/price_service
-    container_name: cosc310_price
-    ports:
-      - "8002:8002"
-    volumes:
-      - ./backend/app/data:/app/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-services:
-  backend:
-    build: ./backend
-    container_name: cosc310_backend
-    ports:
-      - "8000:8000"
-    environment:
-      PRICE_URL: http://price_service:8002
-      NOTIFICATION_URL: http://notification_service:8001
-    depends_on:
-      notification_service:
-        condition: service_healthy
-      price_service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    volumes:
-      - ./backend/app:/code/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  notification_service:
-    build: ./backend/notification_service
-    container_name: cosc310_notification
-    ports:
-      - "8001:8001"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  price_service:
-    build: ./backend/price_service
     container_name: cosc310_price
     ports:
       - "8002:8002"

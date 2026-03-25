@@ -243,5 +243,4 @@ def mark_notification_as_read(notification_id: int):
                 "status": "notification marked as read",
                 "notification": notification.model_dump()
             }
-
     raise HTTPException(status_code=404, detail="Notification not found")
