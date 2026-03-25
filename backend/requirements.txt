@@ -3,7 +3,6 @@ uvicorn[standard]
 httpx
 pydantic
 pytest
-fastapi
 sqlalchemy
 passlib[bcrypt]
 PyJWT
