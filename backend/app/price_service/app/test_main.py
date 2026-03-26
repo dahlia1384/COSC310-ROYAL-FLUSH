@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from fastapi.testclient import TestClient
 from main import app
 import pytest
@@ -14,443 +13,151 @@ def test_health():
 
 def test_calculate_price():
     payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["discounted_subtotal"] == pytest.approx(25.0)
-    assert data["service_charge"] == pytest.approx(2.5)
-    assert data["tax"] == pytest.approx(1.25)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(33.74)
-
-
-def test_calculate_price_with_save10():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "SAVE10"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(2.5)
-    assert data["discounted_subtotal"] == pytest.approx(22.5)
-    assert data["service_charge"] == pytest.approx(2.25)
-    assert data["tax"] == pytest.approx(1.12)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(30.87)
-
-
-def test_calculate_price_with_save20():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "SAVE20"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(5.0)
-    assert data["discounted_subtotal"] == pytest.approx(20.0)
-    assert data["service_charge"] == pytest.approx(2.0)
-    assert data["tax"] == pytest.approx(1.0)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(27.99)
-
-
-def test_calculate_price_with_invalid_promo():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "BADCODE"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["total"] == pytest.approx(33.74)
-
-
-def test_calculate_price_with_empty_items():
-    payload = {
-        "user_id": 1,
-        "items": []
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(0.0)
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["discounted_subtotal"] == pytest.approx(0.0)
-    assert data["service_charge"] == pytest.approx(0.0)
-    assert data["tax"] == pytest.approx(0.0)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(4.99)
-
-
-def test_calculate_price_with_invalid_quantity():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 0}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 422
-
-
-def test_calculate_price_with_negative_delivery_fee():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 1}
-        ],
-        "delivery_fee": -1
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 422
-
-
-def test_calculate_price_invalid_menu_item():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 999, "quantity": 1}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
-||||||| 52808b3
-from fastapi.testclient import TestClient
-from main import app
-import pytest
-
-client = TestClient(app)
-
-
-def test_health():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
-
-
-def test_calculate_price():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["discounted_subtotal"] == pytest.approx(25.0)
-    assert data["service_charge"] == pytest.approx(2.5)
-    assert data["tax"] == pytest.approx(1.25)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(33.74)
-
-
-def test_calculate_price_with_save10():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "SAVE10"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(2.5)
-    assert data["discounted_subtotal"] == pytest.approx(22.5)
-    assert data["service_charge"] == pytest.approx(2.25)
-    assert data["tax"] == pytest.approx(1.12)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(30.87)
-
-
-def test_calculate_price_with_save20():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "SAVE20"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["discount"] == pytest.approx(5.0)
-    assert data["discounted_subtotal"] == pytest.approx(20.0)
-    assert data["service_charge"] == pytest.approx(2.0)
-    assert data["tax"] == pytest.approx(1.0)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(27.99)
-
-
-def test_calculate_price_with_invalid_promo():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
-        ],
-        "promo_code": "BADCODE"
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["subtotal"] == pytest.approx(25.0)
-    assert data["total"] == pytest.approx(33.74)
-
-
-def test_calculate_price_with_empty_items():
-    payload = {
-        "user_id": 1,
-        "items": []
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 200, response.json()
-
-    data = response.json()
-    assert data["subtotal"] == pytest.approx(0.0)
-    assert data["discount"] == pytest.approx(0.0)
-    assert data["discounted_subtotal"] == pytest.approx(0.0)
-    assert data["service_charge"] == pytest.approx(0.0)
-    assert data["tax"] == pytest.approx(0.0)
-    assert data["delivery_fee"] == pytest.approx(4.99)
-    assert data["total"] == pytest.approx(4.99)
-
-
-def test_calculate_price_with_invalid_quantity():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 0}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 422
-
-
-def test_calculate_price_with_negative_delivery_fee():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 1, "quantity": 1}
-        ],
-        "delivery_fee": -1
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 422
-
-
-def test_calculate_price_invalid_menu_item():
-    payload = {
-        "user_id": 1,
-        "items": [
-            {"menu_item_id": 999, "quantity": 1}
-        ]
-    }
-
-    response = client.post("/calculate", json=payload)
-
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
-=======
-from fastapi.testclient import TestClient
-from main import app
-import pytest
-
-client = TestClient(app)
-
-
-def post_calculate(payload: dict):
-    return client.post("/calculate", json=payload)
-
-
-def assert_price_response(
-    data,
-    subtotal,
-    discount,
-    discounted_subtotal,
-    service_charge,
-    tax,
-    delivery_fee,
-    total,
-):
-    assert data["subtotal"] == pytest.approx(subtotal)
-    assert data["discount"] == pytest.approx(discount)
-    assert data["discounted_subtotal"] == pytest.approx(discounted_subtotal)
-    assert data["service_charge"] == pytest.approx(service_charge)
-    assert data["tax"] == pytest.approx(tax)
-    assert data["delivery_fee"] == pytest.approx(delivery_fee)
-    assert data["total"] == pytest.approx(total)
-
-
-def base_payload():
-    return {
         "user_id": "1",
         "items": [
-            {"menu_item_id": 1, "quantity": 2},
-            {"menu_item_id": 2, "quantity": 1}
+            {"menu_item_id": "1-salad", "quantity": 2},  # 17.0
+            {"menu_item_id": "1-soup", "quantity": 1}    # 5.5
         ]
     }
 
+    response = client.post("/calculate", json=payload)
 
-def test_health():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+    assert response.status_code == 200, response.json()
 
-
-def test_calculate_price():
-    response = post_calculate(base_payload())
-    assert response.status_code == 200
     data = response.json()
-    assert_price_response(data, 25.0, 0.0, 25.0, 2.5, 1.25, 4.99, 33.74)
+    assert data["subtotal"] == pytest.approx(22.5)
+    assert data["discount"] == pytest.approx(0.0)
+    assert data["discounted_subtotal"] == pytest.approx(22.5)
+    assert data["service_charge"] == pytest.approx(2.25)
+    assert data["tax"] == pytest.approx(1.12)
+    assert data["delivery_fee"] == pytest.approx(4.99)
+    assert data["total"] == pytest.approx(30.87)
 
 
 def test_calculate_price_with_save10():
-    payload = base_payload()
-    payload["promo_code"] = "SAVE10"
-    response = post_calculate(payload)
-    assert response.status_code == 200
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "1-salad", "quantity": 2},
+            {"menu_item_id": "1-soup", "quantity": 1}
+        ],
+        "promo_code": "SAVE10"
+    }
+
+    response = client.post("/calculate", json=payload)
+
+    assert response.status_code == 200, response.json()
+
     data = response.json()
-    assert_price_response(data, 25.0, 2.5, 22.5, 2.25, 1.12, 4.99, 30.87)
+    assert data["subtotal"] == pytest.approx(22.5)
+    assert data["discount"] == pytest.approx(2.25)  # 10%
+    assert data["discounted_subtotal"] == pytest.approx(20.25)
+    assert data["service_charge"] == pytest.approx(2.02)
+    assert data["tax"] == pytest.approx(1.01)
+    assert data["delivery_fee"] == pytest.approx(4.99)
+    assert data["total"] == pytest.approx(28.28)
 
 
 def test_calculate_price_with_save20():
-    payload = base_payload()
-    payload["promo_code"] = "SAVE20"
-    response = post_calculate(payload)
-    assert response.status_code == 200
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "1-salad", "quantity": 2},
+            {"menu_item_id": "1-soup", "quantity": 1}
+        ],
+        "promo_code": "SAVE20"
+    }
+
+    response = client.post("/calculate", json=payload)
+
+    assert response.status_code == 200, response.json()
+
     data = response.json()
-    assert_price_response(data, 25.0, 5.0, 20.0, 2.0, 1.0, 4.99, 27.99)
+    assert data["subtotal"] == pytest.approx(22.5)
+    assert data["discount"] == pytest.approx(4.5)  # 20%
+    assert data["discounted_subtotal"] == pytest.approx(18.0)
+    assert data["service_charge"] == pytest.approx(1.8)
+    assert data["tax"] == pytest.approx(0.9)
+    assert data["delivery_fee"] == pytest.approx(4.99)
+    assert data["total"] == pytest.approx(25.69)
 
 
 def test_calculate_price_with_invalid_promo():
-    payload = base_payload()
-    payload["promo_code"] = "BADCODE"
-    response = post_calculate(payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert_price_response(data, 25.0, 0.0, 25.0, 2.5, 1.25, 4.99, 33.74)
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "1-salad", "quantity": 2},
+            {"menu_item_id": "1-soup", "quantity": 1}
+        ],
+        "promo_code": "BADCODE"
+    }
 
+    response = client.post("/calculate", json=payload)
 
-def test_calculate_price_with_lowercase_promo():
-    payload = base_payload()
-    payload["promo_code"] = "save10"
-    response = post_calculate(payload)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
+
     data = response.json()
-    assert data["discount"] == pytest.approx(2.5)
+    assert data["discount"] == pytest.approx(0.0)
+    assert data["subtotal"] == pytest.approx(22.5)
     assert data["total"] == pytest.approx(30.87)
 
 
 def test_calculate_price_with_empty_items():
-    payload = {"user_id": "1", "items": []}
-    response = post_calculate(payload)
-    assert response.status_code == 200
+    payload = {
+        "user_id": "1",
+        "items": []
+    }
+
+    response = client.post("/calculate", json=payload)
+
+    assert response.status_code == 200, response.json()
+
     data = response.json()
-    assert_price_response(data, 0.0, 0.0, 0.0, 0.0, 0.0, 4.99, 4.99)
+    assert data["subtotal"] == pytest.approx(0.0)
+    assert data["discount"] == pytest.approx(0.0)
+    assert data["discounted_subtotal"] == pytest.approx(0.0)
+    assert data["service_charge"] == pytest.approx(0.0)
+    assert data["tax"] == pytest.approx(0.0)
+    assert data["delivery_fee"] == pytest.approx(4.99)
+    assert data["total"] == pytest.approx(4.99)
 
 
 def test_calculate_price_with_invalid_quantity():
-    payload = {"user_id": "1", "items": [{"menu_item_id": 1, "quantity": 0}]}
-    response = post_calculate(payload)
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "1-salad", "quantity": 0}
+        ]
+    }
+
+    response = client.post("/calculate", json=payload)
+
     assert response.status_code == 422
 
 
 def test_calculate_price_with_negative_delivery_fee():
-    payload = {"user_id": "1", "items": [{"menu_item_id": 1, "quantity": 1}], "delivery_fee": -1}
-    response = post_calculate(payload)
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "1-salad", "quantity": 1}
+        ],
+        "delivery_fee": -1
+    }
+
+    response = client.post("/calculate", json=payload)
+
     assert response.status_code == 422
 
 
 def test_calculate_price_invalid_menu_item():
-    payload = {"user_id": "1", "items": [{"menu_item_id": 999, "quantity": 1}]}
-    response = post_calculate(payload)
+    payload = {
+        "user_id": "1",
+        "items": [
+            {"menu_item_id": "999-does-not-exist", "quantity": 1}
+        ]
+    }
+
+    response = client.post("/calculate", json=payload)
+
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
-
-
-def test_response_contains_item_breakdown():
-    response = post_calculate(base_payload())
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["items"]) == 2
-    assert "menu_item_id" in data["items"][0]
-    assert "quantity" in data["items"][0]
-    assert "unit_price" in data["items"][0]
-    assert "line_total" in data["items"][0]
->>>>>>> faef481089c16744ac26ac3d41f8aea478b80e1f

@@ -60,7 +60,7 @@
 - Finalized the remaining implementation tasks.
 - Tested the system and noted any final issues that needed to be fixed.
 
-## Week 11 - Group Meeting (26/03/2026)
+## Week 11 - Group Meeting (25/03/2026)
 - Completed final checks on the project.
 - Fixed minor bugs and made final adjustments.
 - Reviewed all required deliverables before submission.

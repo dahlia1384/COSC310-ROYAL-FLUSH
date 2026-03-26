@@ -7,22 +7,23 @@ from app.services import order_services
 
 
 VALID_PAYLOAD = {
-    "restaurant_id": 1,
+    "restaurant_id": "1",
     "customer_id": "ac8fc3f0-d128-4ffa-a5b1-6b803746a392",
-    "items": [{"menu_item_id": 101, "quantity": 2}],
+    "items": [{"menu_item_id": "101", "quantity": 2}],
+    "delivery_method": "car"
 }
 
 
 def test_schema_valid():
     order = OrderCreate(**VALID_PAYLOAD)
-    assert isinstance(order.customer_id, UUID)
+    assert isinstance(order.customer_id, str)
     assert len(order.items) == 1
     assert order.items[0].quantity == 2
 
 
 def test_schema_invalid_quantity():
     bad_payload = VALID_PAYLOAD.copy()
-    bad_payload["items"] = [{"menu_item_id": 101, "quantity": 0}]
+    bad_payload["items"] = [{"menu_item_id": "101", "quantity": 0}]
 
     with pytest.raises(Exception):
         OrderCreate(**bad_payload)
@@ -37,8 +38,8 @@ def test_create_order(monkeypatch):
 
     order = order_services.create_new_order(OrderCreate(**VALID_PAYLOAD))
 
-    assert order.order_status == "Order Created"
-    assert isinstance(order.customer_id, UUID)
+    assert order.order_status == "Pending Payment"
+    assert isinstance(order.customer_id, str)
     assert order.order_time.isoformat() == "2024-04-12T00:00:00"
 
 
