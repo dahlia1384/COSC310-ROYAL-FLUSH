@@ -149,7 +149,6 @@ docker run -d \
 Once running, the backend is available at:
 
 - **API:** http://localhost:8000/
-- **Swagger Docs** *(if enabled)*: http://localhost:8000/docs
 
 ---
 
@@ -220,4 +219,4 @@ docker compose up -d
 
 ## Summary
 
-The backend for COSC310-ROYAL-FLUSH is designed as a modular FastAPI-based system with clear separation between routing, schemas, business logic, data access, and service-specific modules. By using Docker and Pytest alongside a layered backend design, the project supports consistent deployment, easier testing, and future scalability. This structure provides a solid foundation for the overall Royal Flush system.
+The backend for COSC310-ROYAL-FLUSH is designed as a modular FastAPI-based system with clear separation between routing, schemas, business logic, data access, and service-specific modules. By using Docker and Pytest alongside a layered backend design, the project supports consistent deployment, easier testing, and future scalability. This structure provides a solid foundation for the overall  system.
