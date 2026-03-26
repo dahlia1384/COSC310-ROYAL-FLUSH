@@ -24,10 +24,14 @@ def test_schema_valid():
 def test_schema_invalid_quantity():
     bad_payload = VALID_PAYLOAD.copy()
     bad_payload["items"] = [{"menu_item_id": "101", "quantity": 0}]
-
     with pytest.raises(Exception):
         OrderCreate(**bad_payload)
 
+def test_schema_empty_items():
+    bad_payload = VALID_PAYLOAD.copy()
+    bad_payload["items"] = []
+    with pytest.raises(Exception):
+        OrderCreate(**bad_payload)
 
 def test_create_order(monkeypatch):
     monkeypatch.setattr(

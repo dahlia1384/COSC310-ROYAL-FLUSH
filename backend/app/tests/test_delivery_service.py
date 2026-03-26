@@ -15,6 +15,11 @@ def test_create_delivery(monkeypatch):
     assert delivery.delivery_method == "Car"
     assert delivery.delivery_time.isoformat() == "2024-04-12T00:00:00"
 
+def test_create_delivery_missing_order_id():
+    bad_order = {"restaurant_id": "1","delivery_method": "Car"}
+    with pytest.raises(KeyError):
+        delivery_services.create_new_delivery(bad_order)
+
 def test_get_delivery(monkeypatch):
     fake_delivery = {
         "order_id": "c65a8aL",
