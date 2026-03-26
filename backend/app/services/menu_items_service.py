@@ -29,7 +29,6 @@ def create_menu_item(restaurant_id: str, payload: MenuItemCreate) -> MenuItem:
         restaurant_id=restaurant_id,
         name=stripped_name,
         price=float(payload.price),
-        order_qty=int(payload.order_qty),
         description=payload.description.strip() if payload.description else None
     )
     items.append(new_item.dict())
@@ -55,7 +54,6 @@ def update_menu_item(menu_item_id: str, payload: MenuItemUpdate) -> MenuItem:
                 restaurant_id=it["restaurant_id"],
                 name=stripped_name,
                 price=float(payload.price),
-                order_qty=int(payload.order_qty),
                 description=payload.description.strip() if payload.description else None
             )
             items[idx] = updated.dict()

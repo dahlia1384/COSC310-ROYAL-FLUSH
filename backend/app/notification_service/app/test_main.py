@@ -1,17 +1,19 @@
 from fastapi.testclient import TestClient
-import app.notification_service.app.main as notification_main
+from main import app, notifications_db, preferences_db
+import main
 
-client = TestClient(notification_main.app)
+client = TestClient(app)
 
 
 def setup_function():
-    notification_main.notifications_db.clear()
-    notification_main.preferences_db.clear()
-    notification_main.next_notification_id = 1
+    notifications_db.clear()
+    preferences_db.clear()
+    main.next_notification_id = 1
+
 
 def test_send_general_notification():
     payload = {
-        "user_id": 1,
+        "user_id": "1",
         "title": "Order Update",
         "message": "Your order is ready",
         "type": "general"
@@ -21,14 +23,14 @@ def test_send_general_notification():
 
     assert response.status_code == 200
     assert response.json()["status"] == "notification sent"
-    assert response.json()["notification"]["user_id"] == 1
+    assert response.json()["notification"]["user_id"] == "1"
     assert response.json()["notification"]["message"] == "Your order is ready"
 
 
 def test_notify_status_change():
     payload = {
-        "user_id": 1,
-        "order_id": 101,
+        "user_id": "1",
+        "order_id": "101",
         "old_status": "Preparing",
         "new_status": "Out for Delivery"
     }
@@ -42,25 +44,25 @@ def test_notify_status_change():
 
 def test_notify_new_order_manager_alert():
     payload = {
-        "manager_id": 99,
-        "order_id": 202,
-        "customer_id": 7
+        "manager_id": "99",
+        "order_id": "202",
+        "customer_id": "7"
     }
 
     response = client.post("/notify-new-order", json=payload)
 
     assert response.status_code == 200
     assert response.json()["status"] == "notification sent"
-    assert response.json()["notification"]["user_id"] == 99
+    assert response.json()["notification"]["user_id"] == "99"
     assert response.json()["notification"]["type"] == "manager_new_order_alert"
-    assert response.json()["notification"]["order_id"] == 202
+    assert response.json()["notification"]["order_id"] == "202"
 
 
 def test_get_user_notifications():
     client.post("/notify-new-order", json={
-        "manager_id": 99,
-        "order_id": 202,
-        "customer_id": 7
+        "manager_id": "99",
+        "order_id": "202",
+        "customer_id": "7"
     })
 
     response = client.get("/users/99/notifications")
@@ -71,9 +73,9 @@ def test_get_user_notifications():
 
 def test_mark_notification_as_read():
     client.post("/notify-new-order", json={
-        "manager_id": 99,
-        "order_id": 202,
-        "customer_id": 7
+        "manager_id": "99",
+        "order_id": "202",
+        "customer_id": "7"
     })
 
     response = client.patch("/notifications/1/read")
@@ -81,14 +83,14 @@ def test_mark_notification_as_read():
     assert response.status_code == 200
     assert response.json()["status"] == "notification marked as read"
     assert response.json()["notification"]["is_read"] is True
-    notification_main.preferences_db.clear()
+    preferences_db.clear()
 
 
 def test_get_default_preferences():
     response = client.get("/users/1/preferences")
 
     assert response.status_code == 200
-    assert response.json()["user_id"] == 1
+    assert response.json()["user_id"] == "1"
     assert response.json()["order_status_updates"] is True
     assert response.json()["promotions"] is True
     assert response.json()["general_notifications"] is True
@@ -113,8 +115,8 @@ def test_status_notification_blocked_by_preferences():
     })
 
     response = client.post("/notify-status-change", json={
-        "user_id": 1,
-        "order_id": 101,
+        "user_id": "1",
+        "order_id": "101",
         "old_status": "Preparing",
         "new_status": "Delivered"
     })
@@ -125,8 +127,8 @@ def test_status_notification_blocked_by_preferences():
 
 def test_status_notification_sent_when_enabled():
     response = client.post("/notify-status-change", json={
-        "user_id": 1,
-        "order_id": 101,
+        "user_id": "1",
+        "order_id": "101",
         "old_status": "Preparing",
         "new_status": "Delivered"
     })
@@ -142,7 +144,7 @@ def test_promo_notification_blocked_by_preferences():
     })
 
     response = client.post("/send-general", json={
-        "user_id": 1,
+        "user_id": "1",
         "title": "Promo",
         "message": "You got 10 percent off",
         "type": "promo_update"

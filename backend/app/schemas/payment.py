@@ -4,8 +4,10 @@ from datetime import datetime
 
 
 class PaymentRequest(BaseModel):
+    customer_id: str
     payment_method: str
     simulate_success: bool
+    promo_code: Optional[str] = None
 
 
 class PaymentResponse(BaseModel):

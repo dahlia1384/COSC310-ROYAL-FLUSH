@@ -4,9 +4,10 @@ from app.main import app
 client = TestClient(app)
 
 VALID_PAYLOAD = {
-    "restaurant_id": 1,
+    "restaurant_id": "1",
     "customer_id": "ac8fc3f0-d128-4ffa-a5b1-6b803746a392",
-    "items": [{"menu_item_id": 101, "quantity": 2}]
+    "items": [{"menu_item_id": "101", "quantity": 2}],
+    "delivery_method": "car"
 }
 
 def test_create_order():
@@ -14,7 +15,7 @@ def test_create_order():
     assert response.status_code == 201
     data = response.json()
     assert str(data["order_id"]) != ""
-    assert data["order_status"] == "Order Created"
+    assert data["order_status"] == "Pending Payment"
 
 
 def test_get_order():

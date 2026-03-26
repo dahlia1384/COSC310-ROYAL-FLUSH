@@ -12,7 +12,6 @@ def test_list_menu_items_for_restaurant_returns_matching_items(monkeypatch):
             "restaurant_id": "r1",
             "name": "Butter Chicken",
             "price": 15.5,
-            "order_qty": 2,
             "description": "classic dish",
         },
         {
@@ -20,7 +19,6 @@ def test_list_menu_items_for_restaurant_returns_matching_items(monkeypatch):
             "restaurant_id": "r2",
             "name": "Tiramisu",
             "price": 8.0,
-            "order_qty": 1,
             "description": "dessert",
         },
     ]
@@ -49,7 +47,6 @@ def test_create_menu_item_adds_new_item(monkeypatch):
     payload = MenuItemCreate(
         name="  Butter Chicken  ",
         price=15.5,
-        order_qty=2,
         description=" classic dish "
     )
 
@@ -73,7 +70,6 @@ def test_create_menu_item_rejects_missing_restaurant(monkeypatch):
     payload = MenuItemCreate(
         name="Butter Chicken",
         price=15.5,
-        order_qty=2,
         description=None
     )
 
@@ -92,7 +88,6 @@ def test_create_menu_item_with_blank_name_raises_error(monkeypatch):
     payload = MenuItemCreate(
         name="   ",
         price=15.5,
-        order_qty=2,
         description="classic dish"
     )
 
@@ -110,7 +105,6 @@ def test_get_menu_item_by_id_returns_matching_item(monkeypatch):
             "restaurant_id": "r1",
             "name": "Butter Chicken",
             "price": 15.5,
-            "order_qty": 2,
             "description": "classic dish",
         }
     ]
@@ -140,7 +134,6 @@ def test_update_menu_item_updates_existing_item(monkeypatch):
             "restaurant_id": "r1",
             "name": "Butter Chicken",
             "price": 15.5,
-            "order_qty": 2,
             "description": "classic dish",
         }
     ]
@@ -157,7 +150,6 @@ def test_update_menu_item_updates_existing_item(monkeypatch):
     payload = MenuItemUpdate(
         name="  Butter Paneer  ",
         price=16.0,
-        order_qty=3,
         description=" vegetarian option "
     )
 
@@ -165,7 +157,6 @@ def test_update_menu_item_updates_existing_item(monkeypatch):
 
     assert updated_item.name == "Butter Paneer"
     assert updated_item.price == 16.0
-    assert updated_item.order_qty == 3
     assert updated_item.description == "vegetarian option"
     assert saved["items"][0]["name"] == "Butter Paneer"
 
@@ -177,7 +168,6 @@ def test_update_menu_item_with_blank_name_raises_error(monkeypatch):
             "restaurant_id": "r1",
             "name": "Butter Chicken",
             "price": 15.5,
-            "order_qty": 2,
             "description": "classic dish",
         }
     ]
@@ -188,7 +178,6 @@ def test_update_menu_item_with_blank_name_raises_error(monkeypatch):
     payload = MenuItemUpdate(
         name="   ",
         price=16.0,
-        order_qty=3,
         description="vegetarian option"
     )
 
@@ -206,7 +195,6 @@ def test_update_menu_item_raises_404_when_missing(monkeypatch):
     payload = MenuItemUpdate(
         name="Butter Paneer",
         price=16.0,
-        order_qty=3,
         description="vegetarian option"
     )
 
@@ -223,7 +211,6 @@ def test_delete_menu_item_removes_existing_item(monkeypatch):
             "restaurant_id": "r1",
             "name": "Butter Chicken",
             "price": 15.5,
-            "order_qty": 2,
             "description": "classic dish",
         },
         {
@@ -231,7 +218,6 @@ def test_delete_menu_item_removes_existing_item(monkeypatch):
             "restaurant_id": "r1",
             "name": "Naan",
             "price": 3.5,
-            "order_qty": 1,
             "description": "bread",
         },
     ]

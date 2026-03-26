@@ -8,12 +8,12 @@ app = FastAPI(title="Price Service")
 
 
 class OrderItem(BaseModel):
-    menu_item_id: int
+    menu_item_id: str
     quantity: int = Field(..., gt=0)
 
 
 class OrderRequest(BaseModel):
-    user_id: int
+    user_id: str
     items: List[OrderItem]
     promo_code: Optional[str] = None
     tax_rate: Optional[float] = Field(default=0.05, ge=0)
@@ -21,7 +21,10 @@ class OrderRequest(BaseModel):
     service_charge_rate: Optional[float] = Field(default=0.10, ge=0)
 
 
-DATA_PATH = Path(__file__).parent / "menu_items.json"
+DATA_PATH = Path("/app/data/menu_items.json")
+# FOR TESTING
+if not DATA_PATH.exists():
+    DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "menu_items.json"
 
 
 @app.get("/")

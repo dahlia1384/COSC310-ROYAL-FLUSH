@@ -3,8 +3,9 @@ uvicorn[standard]
 httpx
 pydantic
 pytest
+fastapi
 sqlalchemy
 passlib[bcrypt]
 PyJWT
-bcrypt
+bcrypt==3.2.2
 email-validator
