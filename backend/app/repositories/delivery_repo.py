@@ -24,7 +24,7 @@ def create_delivery(delivery_data: Dict[str, Any]) -> Dict[str, Any]:
     save_all(deliveries)
     return delivery_data
 
-def get_delivery_by_order_id(delivery_id: str) -> Dict[str, Any]:
+def get_delivery_by_order_id(order_id: str) -> Dict[str, Any]:
     for delivery in load_all():
         if delivery.get("order_id") == order_id:
             return delivery
