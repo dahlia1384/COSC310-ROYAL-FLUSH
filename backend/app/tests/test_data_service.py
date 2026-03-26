@@ -57,7 +57,6 @@ def test_adds_new_menu_item(monkeypatch, tmp_path):
 
 
 def test_duplicate_menu_item_rows_only_create_one_item(monkeypatch, tmp_path):
-    # Same dish appearing twice should still produce one menu item (first row wins for price)
     rows = [BASE_ROW, {**BASE_ROW, "order_value": "20.0", "order_qty": "4"}]
     saved = run_import(monkeypatch, tmp_path, rows)
     assert len(saved["menu"]) == 1
@@ -75,7 +74,6 @@ def test_skips_rows_with_missing_required_fields(monkeypatch, tmp_path):
 
 
 def test_invalid_order_value_skips_menu_item_but_keeps_restaurant(monkeypatch, tmp_path):
-    # Restaurant is added before the menu item price is parsed, so it should still be saved
     rows = [{**BASE_ROW, "order_value": "invalid"}]
     saved = run_import(monkeypatch, tmp_path, rows)
     assert len(saved["restaurants"]) == 1
