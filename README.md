@@ -31,7 +31,6 @@ This design supports the following software quality attributes:
 - **Scalability** — supported through containerization, allowing backend components to run consistently across environments.
 - **Reliability** — improved through validation of incoming requests, structured schemas, and clear organization of backend logic.
 
-> A trade-off of this layered, containerized approach is that it introduces more complexity than a small monolithic backend. However, the benefits in maintainability, extensibility, testing, and organization make this architecture well suited for the Royal Flush system.
 
 ---
 
