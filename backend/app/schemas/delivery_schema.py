@@ -3,7 +3,7 @@ from datetime import datetime
 
 class Delivery(BaseModel):
     order_id: str
-    restaurant_id: int
+    restaurant_id: str
     delivery_status: str
     delivery_method: str
     delivery_time: datetime

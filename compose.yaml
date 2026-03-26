@@ -4,6 +4,8 @@ services:
     container_name: cosc310_backend
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/app/data:/app/app/data
     environment:
       PRICE_URL: http://price_service:8002
       NOTIFICATION_URL: http://notification_service:8001

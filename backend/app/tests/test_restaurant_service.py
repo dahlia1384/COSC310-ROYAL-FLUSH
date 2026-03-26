@@ -83,7 +83,7 @@ def test_search_by_menu_item(monkeypatch):
         {"id": "7", "name": "Tokyo House", "cuisine": "Japanese", "address": "Kelowna"},
     ]
     fake_menu_items = [
-        {"id": "m1", "restaurant_id": "7", "name": "Sushi", "price": 12.0, "order_qty": 1}
+        {"id": "m1", "restaurant_id": "7", "name": "Sushi", "price": 12.0}
     ]
 
     monkeypatch.setattr(restaurants_service, "load_all", lambda: fake_restaurants)
@@ -128,8 +128,8 @@ def test_search_with_cuisine_filter(monkeypatch):
         {"id": "9", "name": "Burger Spot", "cuisine": "Fast Food", "address": "Kelowna"},
     ]
     fake_menu_items = [
-        {"id": "m1", "restaurant_id": "7", "name": "Sushi", "price": 12.0, "order_qty": 1},
-        {"id": "m2", "restaurant_id": "9", "name": "Sushi Burger", "price": 14.0, "order_qty": 1},
+        {"id": "m1", "restaurant_id": "7", "name": "Sushi", "price": 12.0},
+        {"id": "m2", "restaurant_id": "9", "name": "Sushi Burger", "price": 14.0},
     ]
 
     monkeypatch.setattr(restaurants_service, "load_all", lambda: fake_restaurants)
