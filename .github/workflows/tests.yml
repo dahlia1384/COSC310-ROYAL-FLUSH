@@ -24,7 +24,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest fastapi pydantic
+          pip install -r requirements.txt
 
       - name: Run pytest
-        run: python -m pytest app/tests
+        run: |
+          python -m pytest app/tests
+          python -m pytest app/price_service/app/test_main.py
+          python -m pytest app/notification_service/test_main.py
+        

@@ -6,6 +6,8 @@ from app.routers.menu_items import router as menu_items_router
 from app.routers.data import router as data_router
 from app.services.data_service import get_orders_from_csv
 from app.routers.auth_router import router as auth_router
+from app.routers.order_router import router as order_router
+from app.routers.delivery_router import router as delivery_router
 import httpx
 import os
 
@@ -83,3 +85,5 @@ app.include_router(restaurants_router)
 app.include_router(menu_items_router)
 app.include_router(data_router)
 app.include_router(auth_router)
+app.include_router(order_router)
+app.include_router(delivery_router)

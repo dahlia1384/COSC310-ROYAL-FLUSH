@@ -2,11 +2,9 @@ fastapi
 uvicorn[standard]
 httpx
 pydantic
-fastapi
+pytest
 sqlalchemy
 passlib[bcrypt]
 PyJWT
 bcrypt
 email-validator
-pydantic
-pytest
