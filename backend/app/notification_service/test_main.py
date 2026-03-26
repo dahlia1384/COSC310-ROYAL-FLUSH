@@ -1,14 +1,22 @@
-import app.main as main_module
+import os
+import sys
 from fastapi.testclient import TestClient
-from app.main import app, notifications_db, preferences_db
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "app")))
+
+import main as notification_module
+
+app = notification_module.app
+notifications_db = notification_module.notifications_db
+preferences_db = notification_module.preferences_db
 
 client = TestClient(app)
 
 
-def setup_function():
+def setup_function(function):
     notifications_db.clear()
     preferences_db.clear()
-    main_module.next_notification_id = 1
+    notification_module.next_notification_id = 1
 
 
 def create_general_notification(
@@ -64,14 +72,12 @@ def create_manager_alert(
 
 def test_root():
     response = client.get("/")
-
     assert response.status_code == 200
     assert "running" in response.json()["message"].lower()
 
 
 def test_health():
     response = client.get("/health")
-
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
