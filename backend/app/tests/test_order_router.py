@@ -38,9 +38,10 @@ def test_create_order_empty_items():
 def test_update_order_status():
     create = client.post("/orders/", json=VALID_PAYLOAD)
     order_id = str(create.json()["order_id"])
-    response = client.put(f"/orders/{order_id}/status", json={"status": "Order Delivered"})
-    assert response.status_code == 422
-    assert "detail" in response.json()
+    response = client.put(f"/orders/{order_id}/status", json={"order_status": "Order Delivered"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["order_status"] == "Order Delivered"
 
 def test_update_order_status_invalid_payload():
     create = client.post("/orders/", json=VALID_PAYLOAD)
@@ -51,8 +52,8 @@ def test_update_order_status_invalid_payload():
 def test_update_order_status_blocked():
     create = client.post("/orders/", json=VALID_PAYLOAD)
     order_id = str(create.json()["order_id"])
-    client.put(f"/orders/{order_id}/status", json={"status": "Order Delivered"})
-    response = client.put(f"/orders/{order_id}/status", json={"status": "Preparing Order"})
+    client.put(f"/orders/{order_id}/status", json={"order_status": "Order Delivered"})
+    response = client.put(f"/orders/{order_id}/status", json={"order_status": "Preparing Order"})
     assert response.status_code == 400
 
 def test_pay_order_success(monkeypatch):
