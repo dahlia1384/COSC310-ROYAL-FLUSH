@@ -4,7 +4,7 @@ from app.services import delivery_services
 
 VALID_ORDER = {
         "order_id": "c65a8aL",
-        "restaurant_id": 1,
+        "restaurant_id": "1",
         "delivery_method": "Car" }
 
 def test_create_delivery(monkeypatch):
@@ -18,7 +18,7 @@ def test_create_delivery(monkeypatch):
 def test_get_delivery(monkeypatch):
     fake_delivery = {
         "order_id": "c65a8aL",
-        "restaurant_id": 1,
+        "restaurant_id": "1",
         "delivery_status": "Preparing Order",
         "delivery_method": "Car",
         "delivery_time": "2024-04-12T00:00:00"}
@@ -36,7 +36,7 @@ def test_get_delivery_not_found(monkeypatch):
 def test_change_delivery_status(monkeypatch):
     fake_delivery = {
         "order_id": "c65a8aL",
-        "restaurant_id": 1,
+        "restaurant_id": "1",
         "delivery_status": "Preparing Order",
         "delivery_method": "Car",
         "delivery_time": "2024-04-12T00:00:00"}
@@ -49,7 +49,7 @@ def test_change_delivery_status(monkeypatch):
 def test_change_delivery_status_block_delivered(monkeypatch):
     fake_delivery = {
         "order_id": "c65a8aL",
-        "restaurant_id": 1,
+        "restaurant_id": "1",
         "delivery_status": "Order Delivered",
         "delivery_method": "Car",
         "delivery_time": "2024-04-12T00:00:00"}

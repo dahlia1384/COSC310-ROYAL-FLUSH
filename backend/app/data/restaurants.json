@@ -4,83 +4,83 @@
     "name": "Aegean Table",
     "cuisine": "Mediterranean",
     "address": "City_8",
-    "rating": 4.8
+    "rating": 3.04
   },
   {
     "id": "2",
     "name": "Bombay Tandoor",
     "cuisine": "Indian",
     "address": "City_2",
-    "rating": 3.2
+    "rating": 3.02
   },
   {
     "id": "3",
     "name": "Cedar & Olive",
     "cuisine": "Mediterranean",
     "address": "City_4",
-    "rating": 1.5
+    "rating": 2.94
   },
   {
     "id": "4",
     "name": "El Camino Taqueria",
     "cuisine": "Mexican",
     "address": "City_4",
-    "rating": 4.1
+    "rating": 3.01
   },
   {
     "id": "5",
     "name": "Ironwood Burger Co.",
     "cuisine": "American",
     "address": "City_6",
-    "rating": 3.5
+    "rating": 3.07
   },
   {
     "id": "6",
     "name": "Jade Dragon Bistro",
     "cuisine": "Asian",
     "address": "City_5",
-    "rating": 3.9
+    "rating": 2.97
   },
   {
     "id": "7",
     "name": "Lotus Garden",
     "cuisine": "Asian",
     "address": "City_7",
-    "rating": 5.0
+    "rating": 3.07
   },
   {
     "id": "8",
     "name": "Piazza Verona",
     "cuisine": "Italian",
     "address": "City_2",
-    "rating": 2.7
+    "rating": 2.98
   },
   {
     "id": "9",
     "name": "Riverstone Smokehouse",
     "cuisine": "American",
     "address": "City_9",
-    "rating": 4.5
+    "rating": 3.02
   },
   {
     "id": "10",
     "name": "Saffron Palace",
     "cuisine": "Indian",
     "address": "City_6",
-    "rating": 3.0
+    "rating": 3.15
   },
   {
     "id": "11",
     "name": "Sierra Madre Cocina",
     "cuisine": "Mexican",
     "address": "City_6",
-    "rating": 1.0
+    "rating": 3.01
   },
   {
     "id": "12",
     "name": "Trattoria Romano",
     "cuisine": "Italian",
     "address": "City_9",
-    "rating": 4.3
+    "rating": 3.05
   }
 ]

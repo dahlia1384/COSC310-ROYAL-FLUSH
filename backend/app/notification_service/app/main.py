@@ -7,28 +7,28 @@ app = FastAPI(title="Notification Service")
 
 
 class GeneralNotificationRequest(BaseModel):
-    user_id: int
+    user_id: str
     title: str = Field(..., min_length=1)
     message: str = Field(..., min_length=1)
     type: str = Field(default="general", min_length=1)
 
 
 class StatusChangeNotificationRequest(BaseModel):
-    user_id: int
-    order_id: int
+    user_id: str
+    order_id: str
     old_status: str = Field(..., min_length=1)
     new_status: str = Field(..., min_length=1)
 
 
 class ManagerAlertRequest(BaseModel):
-    manager_id: int
-    order_id: int
-    customer_id: int
+    manager_id: str
+    order_id: str
+    customer_id: str
     message: Optional[str] = None
 
 
 class NotificationPreference(BaseModel):
-    user_id: int
+    user_id: str
     order_status_updates: bool = True
     promotions: bool = True
     general_notifications: bool = True
@@ -42,11 +42,11 @@ class NotificationPreferenceUpdate(BaseModel):
 
 class Notification(BaseModel):
     notification_id: int
-    user_id: int
+    user_id: str
     title: str
     message: str
     type: str
-    order_id: Optional[int] = None
+    order_id: Optional[str] = None
     old_status: Optional[str] = None
     new_status: Optional[str] = None
     is_read: bool
@@ -54,17 +54,17 @@ class Notification(BaseModel):
 
 
 notifications_db: List[Notification] = []
-preferences_db: dict[int, NotificationPreference] = {}
+preferences_db: dict[str, NotificationPreference] = {}
 next_notification_id = 1
 
 
-def get_or_create_preferences(user_id: int) -> NotificationPreference:
+def get_or_create_preferences(user_id: str) -> NotificationPreference:
     if user_id not in preferences_db:
         preferences_db[user_id] = NotificationPreference(user_id=user_id)
     return preferences_db[user_id]
 
 
-def notification_allowed(user_id: int, notification_type: str) -> bool:
+def notification_allowed(user_id: str, notification_type: str) -> bool:
     prefs = get_or_create_preferences(user_id)
 
     if notification_type == "order_status_update":
@@ -78,11 +78,11 @@ def notification_allowed(user_id: int, notification_type: str) -> bool:
 
 
 def create_notification(
-    user_id: int,
+    user_id: str,
     title: str,
     message: str,
     notification_type: str,
-    order_id: Optional[int] = None,
+    order_id: Optional[str] = None,
     old_status: Optional[str] = None,
     new_status: Optional[str] = None
 ):
@@ -117,12 +117,12 @@ def health():
 
 
 @app.get("/users/{user_id}/preferences")
-def get_user_preferences(user_id: int):
+def get_user_preferences(user_id: str):
     return get_or_create_preferences(user_id).model_dump()
 
 
 @app.put("/users/{user_id}/preferences")
-def update_user_preferences(user_id: int, data: NotificationPreferenceUpdate):
+def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     prefs = get_or_create_preferences(user_id)
 
     if data.order_status_updates is not None:
@@ -205,7 +205,7 @@ def notify_new_order(data: ManagerAlertRequest):
 
 
 @app.get("/users/{user_id}/notifications")
-def get_user_notifications(user_id: int):
+def get_user_notifications(user_id: str):
     user_notifications = [
         notification.model_dump()
         for notification in notifications_db
@@ -220,7 +220,7 @@ def get_user_notifications(user_id: int):
 
 
 @app.get("/users/{user_id}/notifications/unread")
-def get_unread_notifications(user_id: int):
+def get_unread_notifications(user_id: str):
     unread_notifications = [
         notification.model_dump()
         for notification in notifications_db

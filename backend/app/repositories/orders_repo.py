@@ -18,7 +18,7 @@ def save_all(orders: List[Dict[str, Any]]) -> None:
     os.replace(tmp, DATA_PATH)
 
 def has_unfinished_orders(restaurant_id: str) -> bool:
-    unfinished_statuses = {"Order Created", "Preparing Order", "Order Out for Delivery"}
+    unfinished_statuses = {"Pending Payment", "Paid", "Preparing Order", "Order Out for Delivery"}
     for order in load_all():
         if (
             order.get("restaurant_id") == restaurant_id
@@ -52,3 +52,11 @@ def update_order_status(order_id: str, new_status: str) -> Dict[str, Any]:
             save_all(orders)
             return order
     return None
+
+def update_order_total(order_id: str, total: float) -> None:
+    orders = load_all()
+    for order in orders:
+        if order.get("order_id") == order_id:
+            order["total"] = total
+            save_all(orders)
+            return
