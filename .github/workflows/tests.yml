@@ -31,4 +31,4 @@ jobs:
           python -m pytest app/tests
           python -m pytest app/price_service/app/test_main.py
           python -m pytest app/notification_service/app/test_main.py
-        
+

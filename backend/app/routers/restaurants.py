@@ -16,14 +16,18 @@ def get_restaurants(
     location: str | None = None,
     cuisine: str | None = None,
     min_rating: float | None = Query(default=None, ge=0, le=5),
-    keyword: str | None = None
+       keyword: str | None = None,
+    sort_by: str = Query(default="relevance", pattern="^(relevance|rating|delivery_time)$"),
+    customer_location: str | None = None
 ):
     return list_restaurants_service(
         location=location,
         cuisine=cuisine,
         min_rating=min_rating,
-        keyword=keyword
-    )
+        keyword=keyword,
+        sort_by=sort_by,
+        customer_location=customer_location
+    ) 
 
 @router.post("", response_model=Restaurant, status_code=status.HTTP_201_CREATED)
 def create_restaurant(payload: RestaurantCreate):
