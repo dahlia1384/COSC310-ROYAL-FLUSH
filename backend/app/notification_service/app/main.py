@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, UTC
 
 app = FastAPI(title="Notification Service")
 
@@ -118,7 +118,7 @@ def health():
 
 @app.get("/users/{user_id}/preferences")
 def get_user_preferences(user_id: str):
-    return get_or_create_preferences(user_id).model_dump()
+    return get_or_create_preferences(user_id).dict()
 
 
 @app.put("/users/{user_id}/preferences")
@@ -135,7 +135,7 @@ def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     preferences_db[user_id] = prefs
     return {
         "status": "preferences updated",
-        "preferences": prefs.model_dump()
+        "preferences": prefs.dict()
     }
 
 
@@ -157,7 +157,7 @@ def send_general_notification(data: GeneralNotificationRequest):
 
     return {
         "status": "notification sent",
-        "notification": notification.model_dump()
+        "notification": notification.dict()
     }
 
 
@@ -182,7 +182,7 @@ def notify_status_change(data: StatusChangeNotificationRequest):
 
     return {
         "status": "notification sent",
-        "notification": notification.model_dump()
+        "notification": notification.dict()
     }
 
 
@@ -200,14 +200,14 @@ def notify_new_order(data: ManagerAlertRequest):
 
     return {
         "status": "notification sent",
-        "notification": notification.model_dump()
+        "notification": notification.dict()
     }
 
 
 @app.get("/users/{user_id}/notifications")
 def get_user_notifications(user_id: str):
     user_notifications = [
-        notification.model_dump()
+        notification.dict()
         for notification in notifications_db
         if notification.user_id == user_id
     ]
@@ -222,7 +222,7 @@ def get_user_notifications(user_id: str):
 @app.get("/users/{user_id}/notifications/unread")
 def get_unread_notifications(user_id: str):
     unread_notifications = [
-        notification.model_dump()
+        notification.dict()
         for notification in notifications_db
         if notification.user_id == user_id and not notification.is_read
     ]
@@ -241,6 +241,6 @@ def mark_notification_as_read(notification_id: int):
             notification.is_read = True
             return {
                 "status": "notification marked as read",
-                "notification": notification.model_dump()
+                "notification": notification.dict()
             }
     raise HTTPException(status_code=404, detail="Notification not found")
