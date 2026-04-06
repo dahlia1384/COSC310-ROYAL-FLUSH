@@ -33,3 +33,10 @@ class PaymentAttemptResponse(BaseModel):
 
     class Config:
         from_attributes = True
+    
+class WalletPaymentData(BaseModel):
+    amount: float
+    payment_method: str
+
+    class Config:
+        from_attributes = True
