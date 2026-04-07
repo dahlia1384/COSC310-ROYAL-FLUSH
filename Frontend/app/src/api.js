@@ -4,8 +4,21 @@ async function handleResponse(response) {
     const contentType = response.headers.get('content-type') || ''
 
     if (!response.ok) {
-        const text = await response.text()
-        throw new Error(`Request failed: ${response.status} ${text}`)
+        let message = `Request failed with status ${response.status}`
+
+        try {
+            if (contentType.includes('application/json')) {
+                const data = await response.json()
+                message = data.detail || data.message || message
+            } else {
+                const text = await response.text()
+                message = text || message
+            }
+        } catch {
+
+        }
+
+        throw new Error(message)
     }
 
     if (!contentType.includes('application/json')) {
@@ -21,16 +34,44 @@ export async function fetchRestaurants(params = {}) {
 
     Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-            query.set(key, value)
+            query.set(key, String(value))
         }
     })
 
-    const url = `${API_BASE}/restaurants${query.toString() ? `?${query.toString()}` : ''}`
-    const response = await fetch(url)
+    const response = await fetch(
+        `${API_BASE}/restaurants${query.toString() ? `?${query.toString()}` : ''}`,
+        {
+            headers: {
+                Accept: 'application/json',
+            },
+        }
+    )
+
     return handleResponse(response)
 }
 
 export async function fetchRestaurantMenu(restaurantId) {
-    const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/menu-items`)
+    const response = await fetch(`${API_BASE}/restaurants/${restaurantId}/menu-items`, {
+        headers: {
+            Accept: 'application/json',
+        },
+    })
+
+    return handleResponse(response)
+}
+
+export async function fetchCurrentUser(token) {
+    const headers = {
+        Accept: 'application/json',
+    }
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_BASE}/auth/me`, {
+        headers,
+    })
+
     return handleResponse(response)
 }

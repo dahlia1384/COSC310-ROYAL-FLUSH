@@ -386,6 +386,31 @@ select {
   grid-template-columns: 1fr 1fr;
 }
 
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+    .filters-grid input,
+    .filters-grid select {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        background: var(--surface);
+        color: var(--text);
+    }
+
+.secondary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.owner-note {
+    margin-top: 12px;
+}
+
 @media (max-width: 1180px) {
   .shell-grid {
     grid-template-columns: 1fr;

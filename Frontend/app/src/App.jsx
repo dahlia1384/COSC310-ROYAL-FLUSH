@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
-import { fetchRestaurants, fetchRestaurantMenu } from './api'
+import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
@@ -45,6 +45,17 @@ function App() {
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
     )
 
+    const [filters, setFilters] = useState({
+        location: '',
+        cuisine: '',
+        minRating: '',
+        customerLocation: '',
+        sortBy: 'relevance',
+    })
+
+    const [currentUser, setCurrentUser] = useState(null)
+    const [authMode, setAuthMode] = useState('preview')
+
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
     }, [favouriteIds])
@@ -58,13 +69,47 @@ function App() {
     }, [rememberedItems])
 
     useEffect(() => {
+        async function loadCurrentUser() {
+            const token = localStorage.getItem('auth_token')
+
+            if (!token) {
+                setCurrentUser(null)
+                setAuthMode('preview')
+                return
+            }
+
+            try {
+                const user = await fetchCurrentUser(token)
+                setCurrentUser(user)
+                setAuthMode('live')
+            } catch {
+                setCurrentUser(null)
+                setAuthMode('preview')
+            }
+        }
+
+        loadCurrentUser()
+    }, [])
+
+    useEffect(() => {
         async function loadRestaurants() {
             try {
                 setLoadingRestaurants(true)
                 setError('')
 
+                const backendSortBy =
+                    filters.sortBy === 'proximity' ? 'delivery_time' : filters.sortBy
+
                 const data = await fetchRestaurants({
                     keyword: search.trim() || undefined,
+                    location: filters.location || undefined,
+                    cuisine: filters.cuisine || undefined,
+                    min_rating: filters.minRating || undefined,
+                    sort_by: backendSortBy || 'relevance',
+                    customer_location:
+                        backendSortBy === 'delivery_time'
+                            ? filters.customerLocation || undefined
+                            : undefined,
                 })
 
                 setRestaurants(data)
@@ -84,7 +129,7 @@ function App() {
         }
 
         loadRestaurants()
-    }, [search])
+    }, [search, filters])
 
     useEffect(() => {
         async function loadMenu() {
@@ -108,9 +153,10 @@ function App() {
         return restaurants.map((restaurant) => ({
             ...restaurant,
             cover: restaurant.cuisine || 'Restaurant',
-            eta: restaurant.estimated_delivery_time
-                ? `${restaurant.estimated_delivery_time} min`
-                : 'Fast delivery',
+            eta:
+                restaurant.estimated_delivery_time != null
+                    ? `${restaurant.estimated_delivery_time} min`
+                    : 'Fast delivery',
             isFavourite: favouriteIds.includes(restaurant.id),
             menu: menusByRestaurant[restaurant.id] || [],
         }))
@@ -165,7 +211,17 @@ function App() {
         })
     }
 
+    function canManageRestaurant(restaurant) {
+        if (authMode !== 'live') return false
+        if (!currentUser) return false
+        if (currentUser.role !== 'RESTAURANT_OWNER') return false
+        return restaurant.owner_id === currentUser.id
+    }
+
     function toggleAvailability(restaurantId, itemId) {
+        const restaurant = restaurantsWithUi.find((r) => r.id === restaurantId)
+        if (!restaurant || !canManageRestaurant(restaurant)) return
+
         setMenusByRestaurant((prev) => ({
             ...prev,
             [restaurantId]: (prev[restaurantId] || []).map((item) =>
@@ -289,7 +345,7 @@ function App() {
                     />
                     <select value={role} onChange={(e) => setRole(e.target.value)}>
                         <option value="CUSTOMER">Customer</option>
-                        <option value="RESTAURANT_OWNER">Restaurant Owner</option>
+                        <option value="RESTAURANT_OWNER">Restaurant Owner Preview</option>
                     </select>
                 </div>
             </header>
@@ -326,8 +382,85 @@ function App() {
                                 <div>
                                     <p className="eyebrow">Discover</p>
                                     <p className="muted">
-                                        Browse restaurants in your area, and choose your favourites!
+                                        Browse restaurants in your area, search by cuisine or keywords, and sort by what matters most.
                                     </p>
+                                </div>
+                            </section>
+
+                            <section className="section-card">
+                                <h2>Browse Restaurants</h2>
+                                <p className="muted">
+                                    Filter by location, cuisine, minimum rating, and sort by rating, proximity, or relevance.
+                                </p>
+
+                                <div className="filters-grid">
+                                    <input
+                                        value={filters.location}
+                                        onChange={(e) =>
+                                            setFilters((prev) => ({ ...prev, location: e.target.value }))
+                                        }
+                                        placeholder="Filter by location"
+                                    />
+
+                                    <input
+                                        value={filters.cuisine}
+                                        onChange={(e) =>
+                                            setFilters((prev) => ({ ...prev, cuisine: e.target.value }))
+                                        }
+                                        placeholder="Filter by cuisine"
+                                    />
+
+                                    <select
+                                        value={filters.minRating}
+                                        onChange={(e) =>
+                                            setFilters((prev) => ({ ...prev, minRating: e.target.value }))
+                                        }
+                                    >
+                                        <option value="">Any rating</option>
+                                        <option value="3">3.0+</option>
+                                        <option value="3.5">3.5+</option>
+                                        <option value="4">4.0+</option>
+                                        <option value="4.5">4.5+</option>
+                                    </select>
+
+                                    <select
+                                        value={filters.sortBy}
+                                        onChange={(e) =>
+                                            setFilters((prev) => ({ ...prev, sortBy: e.target.value }))
+                                        }
+                                    >
+                                        <option value="relevance">Relevance</option>
+                                        <option value="rating">Rating</option>
+                                        <option value="proximity">Proximity</option>
+                                    </select>
+
+                                    {filters.sortBy === 'proximity' && (
+                                        <input
+                                            value={filters.customerLocation}
+                                            onChange={(e) =>
+                                                setFilters((prev) => ({
+                                                    ...prev,
+                                                    customerLocation: e.target.value,
+                                                }))
+                                            }
+                                            placeholder="Your location (e.g. City_2)"
+                                        />
+                                    )}
+
+                                    <button
+                                        className="ghost-btn"
+                                        onClick={() =>
+                                            setFilters({
+                                                location: '',
+                                                cuisine: '',
+                                                minRating: '',
+                                                customerLocation: '',
+                                                sortBy: 'relevance',
+                                            })
+                                        }
+                                    >
+                                        Clear filters
+                                    </button>
                                 </div>
                             </section>
 
@@ -358,6 +491,7 @@ function App() {
                                                 <div className="chip-row">
                                                     {restaurant.rating != null && <span className="chip">{restaurant.rating} ★</span>}
                                                     <span className="chip">{restaurant.eta}</span>
+                                                    {restaurant.address && <span className="chip">{restaurant.address}</span>}
                                                 </div>
 
                                                 <button className="primary-btn" onClick={() => goToRestaurant(restaurant.id)}>
@@ -558,43 +692,61 @@ function App() {
                             <section className="section-card">
                                 <h2>Owner Dashboard</h2>
                                 <p className="muted">
-                                    Menu data is loaded from the backend, while availability toggles here are still frontend-side until you wire PATCH support.
+                                    Owner actions are only enabled when there is a real authenticated owner session and the restaurant belongs to that owner.
                                 </p>
+                                {authMode === 'preview' && (
+                                    <p className="muted">
+                                        Preview mode: switching the dropdown changes the layout only. It does not grant real editing permissions.
+                                    </p>
+                                )}
                             </section>
 
-                            {restaurantsWithUi.map((restaurant) => (
-                                <section key={restaurant.id} className="section-card">
-                                    <div className="row between center">
-                                        <div>
-                                            <h3>{restaurant.name}</h3>
-                                            <p className="muted">{restaurant.cuisine || 'Cuisine not listed'}</p>
-                                        </div>
-                                        <span className="chip">{restaurant.menu.length} items</span>
-                                    </div>
+                            {restaurantsWithUi.map((restaurant) => {
+                                const canManage = canManageRestaurant(restaurant)
 
-                                    <div className="stack-list">
-                                        {restaurant.menu.map((item) => (
-                                            <div key={item.id} className="list-row">
-                                                <div>
-                                                    <strong>{item.name}</strong>
-                                                    <p className="muted">{currency(item.price)}</p>
-                                                </div>
-                                                <div className="row gap-sm">
-                                                    <span className={item.available === false ? 'badge badge--off' : 'badge badge--ok'}>
-                                                        {item.available === false ? 'Unavailable' : 'Available'}
-                                                    </span>
-                                                    <button
-                                                        className="secondary-btn"
-                                                        onClick={() => toggleAvailability(restaurant.id, item.id)}
-                                                    >
-                                                        Toggle availability
-                                                    </button>
-                                                </div>
+                                return (
+                                    <section key={restaurant.id} className="section-card">
+                                        <div className="row between center">
+                                            <div>
+                                                <h3>{restaurant.name}</h3>
+                                                <p className="muted">{restaurant.cuisine || 'Cuisine not listed'}</p>
                                             </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            ))}
+                                            <span className="chip">{restaurant.menu.length} items</span>
+                                        </div>
+
+                                        {!canManage && (
+                                            <p className="muted owner-note">
+                                                {authMode === 'preview'
+                                                    ? 'Preview mode: owner controls are disabled until a real owner account is logged in.'
+                                                    : 'You do not own this restaurant, so availability controls are disabled.'}
+                                            </p>
+                                        )}
+
+                                        <div className="stack-list">
+                                            {restaurant.menu.map((item) => (
+                                                <div key={item.id} className="list-row">
+                                                    <div>
+                                                        <strong>{item.name}</strong>
+                                                        <p className="muted">{currency(item.price)}</p>
+                                                    </div>
+                                                    <div className="row gap-sm">
+                                                        <span className={item.available === false ? 'badge badge--off' : 'badge badge--ok'}>
+                                                            {item.available === false ? 'Unavailable' : 'Available'}
+                                                        </span>
+                                                        <button
+                                                            className="secondary-btn"
+                                                            disabled={!canManage}
+                                                            onClick={() => toggleAvailability(restaurant.id, item.id)}
+                                                        >
+                                                            Toggle availability
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )
+                            })}
                         </>
                     )}
                 </main>
