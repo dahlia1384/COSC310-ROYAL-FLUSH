@@ -8,7 +8,8 @@ VALID_PAYLOAD = {
     "restaurant_id": "1",
     "customer_id": "ac8fc3f0-d128-4ffa-a5b1-6b803746a392",
     "items": [{"menu_item_id": "101", "quantity": 2}],
-    "delivery_method": "car"
+    "delivery_method": "car",
+    "customer_city": "City_3"
 }
 
 def mock_available_menu_item(monkeypatch):

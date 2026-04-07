@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
 import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
+import ETABox from './common/ETABox';
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
@@ -168,6 +169,21 @@ function App() {
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+    const selectedOrder = orderHistory.find(
+        (o) => o.restaurantId === selectedRestaurantId
+    ) ?? {
+        customer_city: selectedRestaurant?.address || " ",
+        delivery_method: "car",
+        order_status: "Order Out for Delivery",
+        items: [],
+        restaurantId: selectedRestaurantId || null,
+        restaurantName: selectedRestaurant?.name || "",
+    };
+
+    const selectedDelivery = {
+        delivery_time: new Date(),
+    };    
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -681,7 +697,11 @@ function App() {
                                 </article>
                                 <article className="placeholder-card">
                                     <h3>ETA Tracking</h3>
-                                    <p className="muted">Reserved for teammate ETA feature.</p>
+                                    <ETABox 
+                                        order={selectedOrder} 
+                                        restaurant={selectedRestaurant} 
+                                        delivery={selectedDelivery} 
+                                    />
                                 </article>
                             </section>
                         </>
