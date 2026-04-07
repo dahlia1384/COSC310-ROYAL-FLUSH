@@ -105,7 +105,7 @@ def list_restaurants(
     return restaurants
 
 
-def create_restaurant(payload: RestaurantCreate) -> Restaurant:
+def create_restaurant(payload: RestaurantCreate, owner_id: str) -> Restaurant:
     restaurants = load_all()
     new_id = str(uuid.uuid4())
 
@@ -118,11 +118,13 @@ def create_restaurant(payload: RestaurantCreate) -> Restaurant:
 
     new_restaurant = Restaurant(
         id=new_id,
+        owner_id=owner_id,
         name=stripped_name,
         cuisine=payload.cuisine.strip() if payload.cuisine else None,
         address=payload.address.strip() if payload.address else None,
         rating=float(payload.rating) if getattr(payload, "rating", None) is not None else None,
     )
+
     restaurants.append(new_restaurant.dict())
     save_all(restaurants)
     return new_restaurant
@@ -134,18 +136,35 @@ def get_restaurant_by_id(restaurant_id: str) -> Restaurant:
             return Restaurant(**r)
     raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
 
+def assert_restaurant_owner(restaurant_id: str, owner_id: str) -> dict:
+    restaurant = get_restaurant_by_id(restaurant_id)
 
-def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaurant:
+    if restaurant.get("owner_id") != owner_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not allowed to modify this restaurant."
+        )
+
+    return restaurant
+
+def update_restaurant(restaurant_id: str, payload: RestaurantUpdate, owner_id: str) -> Restaurant:
     restaurants = load_all()
 
     for idx, r in enumerate(restaurants):
         if r.get("id") == restaurant_id:
+            if r.get("owner_id") != owner_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You are not allowed to modify this restaurant."
+                )
+
             stripped_name = payload.name.strip()
             if not stripped_name:
                 raise HTTPException(status_code=400, detail="Restaurant name cannot be empty.")
 
             updated = Restaurant(
                 id=restaurant_id,
+                owner_id=r["owner_id"],
                 name=stripped_name,
                 cuisine=payload.cuisine.strip() if payload.cuisine else None,
                 address=payload.address.strip() if payload.address else None,
@@ -158,17 +177,24 @@ def update_restaurant(restaurant_id: str, payload: RestaurantUpdate) -> Restaura
     raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
 
 
-def delete_restaurant(restaurant_id: str) -> None:
-    restaurants = load_all()
+def delete_restaurant(restaurant_id: str, owner_id: str) -> None:
     restaurants = load_all()
 
-    if not any(r.get("id") == restaurant_id for r in restaurants):
+    target = None
+    for r in restaurants:
+        if r.get("id") == restaurant_id:
+            target = r
+            break
+
+    if not target:
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
 
+    if target.get("owner_id") != owner_id:
+        raise HTTPException(status_code=403, detail="You are not allowed to delete this restaurant.")
+        
+
     if has_unfinished_orders(restaurant_id):
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete restaurant with pending or active orders."
+        raise HTTPException(status_code=400, detail="Cannot delete restaurant with pending or active orders."
         )
 
     new_restaurants = [r for r in restaurants if r.get("id") != restaurant_id]

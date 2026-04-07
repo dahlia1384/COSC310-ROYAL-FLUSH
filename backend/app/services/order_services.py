@@ -2,6 +2,7 @@ import uuid
 from fastapi import HTTPException
 from typing import List
 from app.schemas.order_schema import Order, OrderCreate
+from app.services.menu_items_service import get_menu_item_by_id
 from app.repositories.orders_repo import (
     create_order,
     get_order_by_id,
@@ -12,6 +13,16 @@ from app.repositories.orders_repo import (
 
 def create_new_order(payload: OrderCreate) -> Order:
     order_data = payload.dict()
+
+    for item in payload.items:
+        menu_item = get_menu_item_by_id(item.menu_item_id)
+
+        if hasattr(menu_item, "available") and not menu_item.available:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Menu item '{menu_item.name}' is currently unavailable."
+            )
+
     order_data["order_id"] = str(uuid.uuid4())
     order_data["order_status"] = "Pending Payment"
     created = create_order(order_data)

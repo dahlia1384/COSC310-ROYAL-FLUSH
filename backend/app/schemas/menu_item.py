@@ -6,13 +6,16 @@ class MenuItem(BaseModel):
     name: str
     price: float = Field(ge=0)
     description: str | None = None
+    available: bool = True
 
 class MenuItemCreate(BaseModel):
     name: str = Field(min_length=1)
     price: float = Field(ge=0)
     description: str | None = None
+    available: bool = True
 
 class MenuItemUpdate(BaseModel):
     name: str = Field(min_length=1)
     price: float = Field(ge=0)
     description: str | None = None
+    available: bool = True
