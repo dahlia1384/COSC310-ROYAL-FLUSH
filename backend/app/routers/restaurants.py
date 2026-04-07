@@ -1,6 +1,7 @@
-from fastapi import APIRouter, status, Query
+from fastapi import APIRouter, status, Query, Depends
 from typing import List
 from app.schemas.restaurant import Restaurant, RestaurantCreate, RestaurantUpdate
+from app.services.auth_dependencies import require_role
 from app.services.restaurants_service import (
     list_restaurants as list_restaurants_service,
     create_restaurant as create_restaurant_service,
@@ -30,18 +31,28 @@ def get_restaurants(
     ) 
 
 @router.post("", response_model=Restaurant, status_code=status.HTTP_201_CREATED)
-def create_restaurant(payload: RestaurantCreate):
-    return create_restaurant_service(payload)
+def create_restaurant(
+    payload: RestaurantCreate,
+    current_user=Depends(require_role("RESTAURANT_OWNER"))
+):
+    return create_restaurant_service(payload, owner_id=current_user.id)
 
 @router.get("/{restaurant_id}", response_model=Restaurant)
 def get_restaurant(restaurant_id: str):
     return get_restaurant_by_id_service(restaurant_id)
 
 @router.put("/{restaurant_id}", response_model=Restaurant)
-def update_restaurant(restaurant_id: str, payload: RestaurantUpdate):
-    return update_restaurant_service(restaurant_id, payload)
+def update_restaurant(
+    restaurant_id: str,
+    payload: RestaurantUpdate,
+    current_user=Depends(require_role("RESTAURANT_OWNER"))
+):
+    return update_restaurant_service(restaurant_id, payload, owner_id=current_user.id)
 
 @router.delete("/{restaurant_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_restaurant(restaurant_id: str):
-    delete_restaurant_service(restaurant_id)
+def delete_restaurant(
+    restaurant_id: str,
+    current_user=Depends(require_role("RESTAURANT_OWNER"))
+):
+    delete_restaurant_service(restaurant_id, owner_id=current_user.id)
     return None

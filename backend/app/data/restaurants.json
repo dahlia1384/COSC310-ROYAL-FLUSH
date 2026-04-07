@@ -1,6 +1,7 @@
 [
   {
     "id": "1",
+    "owner_id": "seed-owner-1",
     "name": "Aegean Table",
     "cuisine": "Mediterranean",
     "address": "City_8",
@@ -8,6 +9,7 @@
   },
   {
     "id": "2",
+    "owner_id": "seed-owner-2",
     "name": "Bombay Tandoor",
     "cuisine": "Indian",
     "address": "City_2",
@@ -15,6 +17,7 @@
   },
   {
     "id": "3",
+    "owner_id": "seed-owner-3",
     "name": "Cedar & Olive",
     "cuisine": "Mediterranean",
     "address": "City_4",
@@ -22,6 +25,7 @@
   },
   {
     "id": "4",
+    "owner_id": "seed-owner-4",
     "name": "El Camino Taqueria",
     "cuisine": "Mexican",
     "address": "City_4",
@@ -29,6 +33,7 @@
   },
   {
     "id": "5",
+    "owner_id": "seed-owner-5",
     "name": "Ironwood Burger Co.",
     "cuisine": "American",
     "address": "City_6",
@@ -36,6 +41,7 @@
   },
   {
     "id": "6",
+    "owner_id": "seed-owner-6",
     "name": "Jade Dragon Bistro",
     "cuisine": "Asian",
     "address": "City_5",
@@ -43,6 +49,7 @@
   },
   {
     "id": "7",
+    "owner_id": "seed-owner-7",
     "name": "Lotus Garden",
     "cuisine": "Asian",
     "address": "City_7",
@@ -50,6 +57,7 @@
   },
   {
     "id": "8",
+    "owner_id": "seed-owner-8",
     "name": "Piazza Verona",
     "cuisine": "Italian",
     "address": "City_2",
@@ -57,6 +65,7 @@
   },
   {
     "id": "9",
+    "owner_id": "seed-owner-9",
     "name": "Riverstone Smokehouse",
     "cuisine": "American",
     "address": "City_9",
@@ -64,6 +73,7 @@
   },
   {
     "id": "10",
+    "owner_id": "seed-owner-10",
     "name": "Saffron Palace",
     "cuisine": "Indian",
     "address": "City_6",
@@ -71,6 +81,7 @@
   },
   {
     "id": "11",
+    "owner_id": "seed-owner-11",
     "name": "Sierra Madre Cocina",
     "cuisine": "Mexican",
     "address": "City_6",
@@ -78,6 +89,7 @@
   },
   {
     "id": "12",
+    "owner_id": "seed-owner-12",
     "name": "Trattoria Romano",
     "cuisine": "Italian",
     "address": "City_9",

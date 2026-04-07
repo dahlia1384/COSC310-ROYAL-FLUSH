@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Frontend/FoodDeliveryApp/fooddeliveryapp.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>

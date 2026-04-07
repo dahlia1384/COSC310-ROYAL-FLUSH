@@ -1,6 +1,18 @@
 services:
+  frontend:
+    build:
+      context: ./Frontend/app
+      dockerfile: ../Dockerfile.frontend
+    container_name: cosc310_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile.backend
     container_name: cosc310_backend
     ports:
       - "8000:8000"
