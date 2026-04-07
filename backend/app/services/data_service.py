@@ -56,6 +56,7 @@ def get_orders_from_csv():
             if restaurant_id not in restaurants:
                 restaurants[restaurant_id] = {
                     "id": restaurant_id,
+                    "owner_id": f"seed-owner-{restaurant_id}",
                     "name": _clean_str(row.get("restaurant_name")),
                     "cuisine": _clean_str(row.get("cuisine")) or None,
                     "address": _clean_str(row.get("location")) or None,

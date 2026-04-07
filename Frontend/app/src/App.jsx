@@ -1,117 +1,644 @@
-import { useMemo, useState } from 'react'
-import './styles/tokens.css'
+import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
+import { fetchRestaurants, fetchRestaurantMenu } from './api'
 
-import { mockRestaurants, mockRememberedItems, mockOrders } from './data/mockUiData'
-import AppShell from './components/layout/AppShell'
-import HomePage from './pages/HomePage'
-import RestaurantPage from './pages/RestaurantPage'
-import FavouritesPage from './pages/FavouritesPage'
-import ReorderPage from './pages/ReorderPage'
-import OwnerDashboardPage from './pages/OwnerDashboardPage'
+const STORAGE_KEYS = {
+    favourites: 'fd_favourite_restaurant_ids',
+    orders: 'fd_order_history',
+    remembered: 'fd_remembered_items',
+}
 
-export default function App() {
-    const [view, setView] = useState('home')
-    const [restaurants, setRestaurants] = useState(mockRestaurants)
-    const [selectedRestaurantId, setSelectedRestaurantId] = useState(mockRestaurants[0]?.id ?? null)
+function readJson(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key)
+        return raw ? JSON.parse(raw) : fallback
+    } catch {
+        return fallback
+    }
+}
+
+function currency(value) {
+    return `$${Number(value).toFixed(2)}`
+}
+
+function App() {
     const [search, setSearch] = useState('')
+    const [view, setView] = useState('discover')
     const [role, setRole] = useState('CUSTOMER')
 
-    const selectedRestaurant = restaurants.find(r => r.id === selectedRestaurantId) ?? null
+    const [restaurants, setRestaurants] = useState([])
+    const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
+    const [menusByRestaurant, setMenusByRestaurant] = useState({})
+    const [loadingRestaurants, setLoadingRestaurants] = useState(true)
+    const [loadingMenu, setLoadingMenu] = useState(false)
+    const [error, setError] = useState('')
 
-    const filteredRestaurants = useMemo(() => {
-        const q = search.trim().toLowerCase()
-        if (!q) return restaurants
+    const [cart, setCart] = useState([])
 
-        return restaurants.filter((restaurant) => {
-            const restaurantMatch =
-                restaurant.name.toLowerCase().includes(q) ||
-                restaurant.cuisine.toLowerCase().includes(q)
+    const [favouriteIds, setFavouriteIds] = useState(() =>
+        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.favourites, [])
+    )
+    const [orderHistory, setOrderHistory] = useState(() =>
+        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.orders, [])
+    )
+    const [rememberedItems, setRememberedItems] = useState(() =>
+        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
+    )
 
-            const itemMatch = restaurant.menu.some(item =>
-                item.name.toLowerCase().includes(q)
-            )
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
+    }, [favouriteIds])
 
-            return restaurantMatch || itemMatch
-        })
-    }, [restaurants, search])
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orderHistory))
+    }, [orderHistory])
+
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.remembered, JSON.stringify(rememberedItems))
+    }, [rememberedItems])
+
+    useEffect(() => {
+        async function loadRestaurants() {
+            try {
+                setLoadingRestaurants(true)
+                setError('')
+
+                const data = await fetchRestaurants({
+                    keyword: search.trim() || undefined,
+                })
+
+                setRestaurants(data)
+
+                if (data.length > 0) {
+                    setSelectedRestaurantId((prev) =>
+                        prev && data.some((r) => r.id === prev) ? prev : data[0].id
+                    )
+                } else {
+                    setSelectedRestaurantId(null)
+                }
+            } catch (err) {
+                setError(err.message || 'Failed to load restaurants')
+            } finally {
+                setLoadingRestaurants(false)
+            }
+        }
+
+        loadRestaurants()
+    }, [search])
+
+    useEffect(() => {
+        async function loadMenu() {
+            if (!selectedRestaurantId || menusByRestaurant[selectedRestaurantId]) return
+
+            try {
+                setLoadingMenu(true)
+                const menu = await fetchRestaurantMenu(selectedRestaurantId)
+                setMenusByRestaurant((prev) => ({ ...prev, [selectedRestaurantId]: menu }))
+            } catch (err) {
+                setError(err.message || 'Failed to load menu')
+            } finally {
+                setLoadingMenu(false)
+            }
+        }
+
+        loadMenu()
+    }, [selectedRestaurantId, menusByRestaurant])
+
+    const restaurantsWithUi = useMemo(() => {
+        return restaurants.map((restaurant) => ({
+            ...restaurant,
+            cover: restaurant.cuisine || 'Restaurant',
+            eta: restaurant.estimated_delivery_time
+                ? `${restaurant.estimated_delivery_time} min`
+                : 'Fast delivery',
+            isFavourite: favouriteIds.includes(restaurant.id),
+            menu: menusByRestaurant[restaurant.id] || [],
+        }))
+    }, [restaurants, favouriteIds, menusByRestaurant])
+
+    const selectedRestaurant =
+        restaurantsWithUi.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null
+
+    const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
+
+    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+    function goToRestaurant(restaurantId) {
+        setSelectedRestaurantId(restaurantId)
+        setView('restaurant')
+    }
 
     function toggleFavourite(restaurantId) {
-        setRestaurants(prev =>
-            prev.map(r =>
-                r.id === restaurantId ? { ...r, isFavourite: !r.isFavourite } : r
-            )
+        setFavouriteIds((prev) =>
+            prev.includes(restaurantId)
+                ? prev.filter((id) => id !== restaurantId)
+                : [...prev, restaurantId]
         )
     }
 
-    function toggleAvailability(restaurantId, menuItemId) {
-        setRestaurants(prev =>
-            prev.map(r =>
-                r.id !== restaurantId
-                    ? r
-                    : {
-                        ...r,
-                        menu: r.menu.map(item =>
-                            item.id === menuItemId
-                                ? { ...item, available: !item.available }
-                                : item
-                        ),
-                    }
-            )
-        )
+    function addToCart(restaurantId, item) {
+        if (item.available === false) return
+
+        const restaurant = restaurantsWithUi.find((r) => r.id === restaurantId)
+        if (!restaurant) return
+
+        setCart((prev) => {
+            const existing = prev.find((cartItem) => cartItem.id === item.id)
+
+            if (existing) {
+                return prev.map((cartItem) =>
+                    cartItem.id === item.id
+                        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                        : cartItem
+                )
+            }
+
+            return [
+                ...prev,
+                {
+                    ...item,
+                    quantity: 1,
+                    restaurantId,
+                    restaurantName: restaurant.name,
+                },
+            ]
+        })
+    }
+
+    function toggleAvailability(restaurantId, itemId) {
+        setMenusByRestaurant((prev) => ({
+            ...prev,
+            [restaurantId]: (prev[restaurantId] || []).map((item) =>
+                item.id === itemId ? { ...item, available: !(item.available === false) } : item
+            ),
+        }))
+    }
+
+    function removeFromCart(itemId) {
+        setCart((prev) => prev.filter((item) => item.id !== itemId))
+    }
+
+    function buildRememberedItemsFromOrder(order) {
+        const nextItems = order.items.map((item) => ({
+            id: `${order.id}-${item.id}`,
+            menuItemId: item.id,
+            name: item.name,
+            price: item.price,
+            restaurantId: order.restaurantId,
+            restaurantName: order.restaurantName,
+            lastOrderedLabel: 'Just now',
+        }))
+
+        setRememberedItems((prev) => {
+            const merged = [...nextItems, ...prev]
+            const unique = []
+            const seen = new Set()
+
+            for (const item of merged) {
+                const key = `${item.restaurantId}-${item.menuItemId}`
+                if (!seen.has(key)) {
+                    seen.add(key)
+                    unique.push(item)
+                }
+            }
+
+            return unique.slice(0, 8)
+        })
+    }
+
+    function checkoutCart() {
+        if (cart.length === 0) return
+
+        const restaurantId = cart[0].restaurantId
+        const restaurantName = cart[0].restaurantName
+
+        const order = {
+            id: `ORD-${Date.now()}`,
+            restaurantId,
+            restaurantName,
+            createdAt: new Date().toLocaleString(),
+            status: 'Placed',
+            total: cartTotal,
+            items: cart.map((item) => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+            })),
+        }
+
+        setOrderHistory((prev) => [order, ...prev].slice(0, 10))
+        buildRememberedItemsFromOrder(order)
+        setCart([])
+        setView('orderAgain')
+    }
+
+    function reorderSingleItem(rememberedItem) {
+        const restaurant = restaurantsWithUi.find((r) => r.id === rememberedItem.restaurantId)
+        const liveItem = restaurant?.menu.find((item) => item.id === rememberedItem.menuItemId)
+
+        if (!restaurant || !liveItem || liveItem.available === false) return
+
+        addToCart(restaurant.id, liveItem)
+        setSelectedRestaurantId(restaurant.id)
+        setView('restaurant')
+    }
+
+    function reorderWholeOrder(order) {
+        const restaurant = restaurantsWithUi.find((r) => r.id === order.restaurantId)
+        if (!restaurant) return
+
+        const nextCart = []
+
+        for (const orderItem of order.items) {
+            const liveItem = restaurant.menu.find((item) => item.id === orderItem.id)
+            if (liveItem && liveItem.available !== false) {
+                nextCart.push({
+                    ...liveItem,
+                    quantity: orderItem.quantity,
+                    restaurantId: restaurant.id,
+                    restaurantName: restaurant.name,
+                })
+            }
+        }
+
+        if (nextCart.length === 0) return
+
+        setCart(nextCart)
+        setSelectedRestaurantId(restaurant.id)
+        setView('restaurant')
     }
 
     return (
-        <AppShell
-            view={view}
-            setView={setView}
-            role={role}
-            setRole={setRole}
-            search={search}
-            setSearch={setSearch}
-        >
-            {view === 'home' && (
-                <HomePage
-                    restaurants={filteredRestaurants}
-                    onOpenRestaurant={(id) => {
-                        setSelectedRestaurantId(id)
-                        setView('restaurant')
-                    }}
-                    onToggleFavourite={toggleFavourite}
-                />
-            )}
+        <div className="app-shell">
+            <header className="topbar">
+                <div className="brand">
+                    <div className="brand-mark">RF</div>
+                    <div>
+                        <h1>Royal Flush</h1>
+                        <p>Your go-to local food delivery app.</p>
+                    </div>
+                </div>
 
-            {view === 'restaurant' && selectedRestaurant && (
-                <RestaurantPage
-                    restaurant={selectedRestaurant}
-                    onToggleFavourite={toggleFavourite}
-                />
-            )}
+                <div className="topbar-controls">
+                    <input
+                        className="search-input"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search restaurants or dishes"
+                    />
+                    <select value={role} onChange={(e) => setRole(e.target.value)}>
+                        <option value="CUSTOMER">Customer</option>
+                        <option value="RESTAURANT_OWNER">Restaurant Owner</option>
+                    </select>
+                </div>
+            </header>
 
-            {view === 'favourites' && (
-                <FavouritesPage
-                    restaurants={restaurants.filter(r => r.isFavourite)}
-                    onOpenRestaurant={(id) => {
-                        setSelectedRestaurantId(id)
-                        setView('restaurant')
-                    }}
-                    onToggleFavourite={toggleFavourite}
-                />
-            )}
+            <div className="shell-grid">
+                <aside className="sidebar">
+                    <button className={view === 'discover' ? 'nav active' : 'nav'} onClick={() => setView('discover')}>
+                        Discover
+                    </button>
+                    <button className={view === 'favourites' ? 'nav active' : 'nav'} onClick={() => setView('favourites')}>
+                        Favourites
+                    </button>
+                    <button className={view === 'orderAgain' ? 'nav active' : 'nav'} onClick={() => setView('orderAgain')}>
+                        Order Again
+                    </button>
+                    <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
+                        Restaurant
+                    </button>
+                    <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
+                        Owner Dashboard
+                    </button>
+                </aside>
 
-            {view === 'reorder' && (
-                <ReorderPage
-                    rememberedItems={mockRememberedItems}
-                    recentOrders={mockOrders}
-                />
-            )}
+                <main className="content">
+                    {error && (
+                        <section className="section-card">
+                            <p className="muted">{error}</p>
+                        </section>
+                    )}
 
-            {view === 'owner' && (
-                <OwnerDashboardPage
-                    restaurants={restaurants}
-                    onToggleAvailability={toggleAvailability}
-                />
-            )}
-        </AppShell>
+                    {view === 'discover' && (
+                        <>
+                            <section className="hero-card">
+                                <div>
+                                    <p className="eyebrow">Discover</p>
+                                    <p className="muted">
+                                        Browse restaurants in your area, and choose your favourites!
+                                    </p>
+                                </div>
+                            </section>
+
+                            {loadingRestaurants ? (
+                                <section className="section-card">
+                                    <p className="muted">Loading restaurants...</p>
+                                </section>
+                            ) : (
+                                <section className="card-grid">
+                                    {restaurantsWithUi.map((restaurant) => (
+                                        <article key={restaurant.id} className="restaurant-card">
+                                            <div className="restaurant-cover">{restaurant.cover}</div>
+                                            <div className="restaurant-body">
+                                                <div className="row between start">
+                                                    <div>
+                                                        <h3>{restaurant.name}</h3>
+                                                        <p className="muted">{restaurant.cuisine || 'Cuisine not listed'}</p>
+                                                    </div>
+                                                    <button
+                                                        className="icon-button"
+                                                        onClick={() => toggleFavourite(restaurant.id)}
+                                                        aria-label="Toggle favourite"
+                                                    >
+                                                        {restaurant.isFavourite ? '★' : '☆'}
+                                                    </button>
+                                                </div>
+
+                                                <div className="chip-row">
+                                                    {restaurant.rating != null && <span className="chip">{restaurant.rating} ★</span>}
+                                                    <span className="chip">{restaurant.eta}</span>
+                                                </div>
+
+                                                <button className="primary-btn" onClick={() => goToRestaurant(restaurant.id)}>
+                                                    View menu
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+                        </>
+                    )}
+
+                    {view === 'favourites' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Favourite Restaurants</h2>
+                                <p className="muted">Saved locally for quick access until backend favourites endpoints are added.</p>
+                            </section>
+
+                            {favouriteRestaurants.length === 0 ? (
+                                <section className="section-card">
+                                    <p className="muted">You haven’t favourited any restaurants yet.</p>
+                                </section>
+                            ) : (
+                                <section className="card-grid">
+                                    {favouriteRestaurants.map((restaurant) => (
+                                        <article key={restaurant.id} className="restaurant-card">
+                                            <div className="restaurant-cover">{restaurant.cover}</div>
+                                            <div className="restaurant-body">
+                                                <div className="row between start">
+                                                    <div>
+                                                        <h3>{restaurant.name}</h3>
+                                                        <p className="muted">{restaurant.cuisine || 'Cuisine not listed'}</p>
+                                                    </div>
+                                                    <button className="icon-button" onClick={() => toggleFavourite(restaurant.id)}>
+                                                        ★
+                                                    </button>
+                                                </div>
+
+                                                <button className="primary-btn" onClick={() => goToRestaurant(restaurant.id)}>
+                                                    Open restaurant
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+                        </>
+                    )}
+
+                    {view === 'orderAgain' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Order Again</h2>
+                                <p className="muted">
+                                    Remembered items and quick reorder are currently stored on the frontend side.
+                                </p>
+                            </section>
+
+                            <section className="two-col-grid">
+                                <article className="section-card">
+                                    <h3>Remembered Items</h3>
+                                    {rememberedItems.length === 0 ? (
+                                        <p className="muted">Once you place an order, recently ordered items will appear here.</p>
+                                    ) : (
+                                        <div className="stack-list">
+                                            {rememberedItems.map((item) => (
+                                                <div key={item.id} className="list-row">
+                                                    <div>
+                                                        <strong>{item.name}</strong>
+                                                        <p className="muted">{item.restaurantName}</p>
+                                                    </div>
+                                                    <div className="row gap-sm">
+                                                        <span className="chip">{currency(item.price)}</span>
+                                                        <button className="secondary-btn" onClick={() => reorderSingleItem(item)}>
+                                                            Reorder
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </article>
+
+                                <article className="section-card">
+                                    <h3>Recent Orders</h3>
+                                    {orderHistory.length === 0 ? (
+                                        <p className="muted">No completed orders yet.</p>
+                                    ) : (
+                                        <div className="stack-list">
+                                            {orderHistory.map((order) => (
+                                                <div key={order.id} className="order-card">
+                                                    <div className="row between start">
+                                                        <div>
+                                                            <strong>{order.restaurantName}</strong>
+                                                            <p className="muted">{order.id}</p>
+                                                            <p className="muted">{order.createdAt}</p>
+                                                        </div>
+                                                        <div className="order-meta">
+                                                            <strong>{currency(order.total)}</strong>
+                                                            <span className="chip">{order.status}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="order-items-preview">
+                                                        {order.items.map((item) => (
+                                                            <span key={`${order.id}-${item.id}`} className="preview-pill">
+                                                                {item.name} × {item.quantity}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+
+                                                    <button className="primary-btn" onClick={() => reorderWholeOrder(order)}>
+                                                        Reorder this order
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </article>
+                            </section>
+                        </>
+                    )}
+
+                    {view === 'restaurant' && selectedRestaurant && (
+                        <>
+                            <section className="restaurant-hero">
+                                <div>
+                                    <p className="eyebrow">{selectedRestaurant.cuisine || 'Restaurant'}</p>
+                                    <h2>{selectedRestaurant.name}</h2>
+                                    <div className="chip-row">
+                                        {selectedRestaurant.rating != null && <span className="chip">{selectedRestaurant.rating} ★</span>}
+                                        <span className="chip">{selectedRestaurant.eta}</span>
+                                        {selectedRestaurant.address && <span className="chip">{selectedRestaurant.address}</span>}
+                                    </div>
+                                </div>
+
+                                <button
+                                    className="secondary-btn"
+                                    onClick={() => toggleFavourite(selectedRestaurant.id)}
+                                >
+                                    {selectedRestaurant.isFavourite ? 'Remove favourite' : 'Add to favourites'}
+                                </button>
+                            </section>
+
+                            {loadingMenu && !selectedRestaurant.menu.length ? (
+                                <section className="section-card">
+                                    <p className="muted">Loading menu...</p>
+                                </section>
+                            ) : (
+                                <section className="menu-grid">
+                                    {selectedRestaurant.menu.map((item) => (
+                                        <article
+                                            key={item.id}
+                                            className={`menu-card ${item.available === false ? 'menu-card--muted' : ''}`}
+                                        >
+                                            <div className="row between start">
+                                                <div>
+                                                    <h3>{item.name}</h3>
+                                                    <p className="muted">{item.description || 'No description available.'}</p>
+                                                </div>
+                                                <span className={item.available === false ? 'badge badge--off' : 'badge badge--ok'}>
+                                                    {item.available === false ? 'Unavailable' : 'Available'}
+                                                </span>
+                                            </div>
+
+                                            <div className="row between center">
+                                                <strong>{currency(item.price)}</strong>
+                                                <button
+                                                    className="primary-btn"
+                                                    disabled={item.available === false}
+                                                    onClick={() => addToCart(selectedRestaurant.id, item)}
+                                                >
+                                                    {item.available === false ? 'Unavailable' : 'Add to cart'}
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+
+                            <section className="placeholder-grid">
+                                <article className="placeholder-card">
+                                    <h3>Notifications</h3>
+                                    <p className="muted">Reserved for teammate notification feature.</p>
+                                </article>
+                                <article className="placeholder-card">
+                                    <h3>ETA Tracking</h3>
+                                    <p className="muted">Reserved for teammate ETA feature.</p>
+                                </article>
+                            </section>
+                        </>
+                    )}
+
+                    {view === 'owner' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Owner Dashboard</h2>
+                                <p className="muted">
+                                    Menu data is loaded from the backend, while availability toggles here are still frontend-side until you wire PATCH support.
+                                </p>
+                            </section>
+
+                            {restaurantsWithUi.map((restaurant) => (
+                                <section key={restaurant.id} className="section-card">
+                                    <div className="row between center">
+                                        <div>
+                                            <h3>{restaurant.name}</h3>
+                                            <p className="muted">{restaurant.cuisine || 'Cuisine not listed'}</p>
+                                        </div>
+                                        <span className="chip">{restaurant.menu.length} items</span>
+                                    </div>
+
+                                    <div className="stack-list">
+                                        {restaurant.menu.map((item) => (
+                                            <div key={item.id} className="list-row">
+                                                <div>
+                                                    <strong>{item.name}</strong>
+                                                    <p className="muted">{currency(item.price)}</p>
+                                                </div>
+                                                <div className="row gap-sm">
+                                                    <span className={item.available === false ? 'badge badge--off' : 'badge badge--ok'}>
+                                                        {item.available === false ? 'Unavailable' : 'Available'}
+                                                    </span>
+                                                    <button
+                                                        className="secondary-btn"
+                                                        onClick={() => toggleAvailability(restaurant.id, item.id)}
+                                                    >
+                                                        Toggle availability
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            ))}
+                        </>
+                    )}
+                </main>
+
+                <aside className="cart-panel">
+                    <section className="section-card">
+                        <h2>Cart</h2>
+
+                        {cart.length === 0 ? (
+                            <p className="muted">Your cart is empty.</p>
+                        ) : (
+                            <>
+                                <div className="stack-list">
+                                    {cart.map((item) => (
+                                        <div key={item.id} className="list-row">
+                                            <div>
+                                                <strong>{item.name}</strong>
+                                                <p className="muted">
+                                                    {item.restaurantName} · {item.quantity} × {currency(item.price)}
+                                                </p>
+                                            </div>
+                                            <button className="ghost-btn" onClick={() => removeFromCart(item.id)}>
+                                                Remove
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="cart-footer">
+                                    <div className="row between center">
+                                        <strong>Total</strong>
+                                        <strong>{currency(cartTotal)}</strong>
+                                    </div>
+                                    <button className="primary-btn full" onClick={checkoutCart}>
+                                        Place order
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </section>
+                </aside>
+            </div>
+        </div>
     )
 }
+
+export default App
