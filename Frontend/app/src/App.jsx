@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
 import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
+import NotificationList from './components/common/NotificationList'
+import OrderStatusCard from './components/common/OrderStatusCard'
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
     orders: 'fd_order_history',
     remembered: 'fd_remembered_items',
+    notifications: 'fd_notifications',
 }
 
 function readJson(key, fallback) {
@@ -44,6 +47,9 @@ function App() {
     const [rememberedItems, setRememberedItems] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
     )
+    const [notifications, setNotifications] = useState(() =>
+        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.notifications, [])
+    )
 
     const [filters, setFilters] = useState({
         location: '',
@@ -67,6 +73,10 @@ function App() {
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.remembered, JSON.stringify(rememberedItems))
     }, [rememberedItems])
+
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(notifications))
+    }, [notifications])
 
     useEffect(() => {
         async function loadCurrentUser() {
@@ -169,6 +179,10 @@ function App() {
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
+    const activeOrders = orderHistory.filter(
+        (order) => !['Completed', 'Cancelled'].includes(order.status)
+    )
+
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
         setView('restaurant')
@@ -179,6 +193,28 @@ function App() {
             prev.includes(restaurantId)
                 ? prev.filter((id) => id !== restaurantId)
                 : [...prev, restaurantId]
+        )
+    }
+
+    function addNotification(message, type) {
+        const newNotification = {
+            id: `NOTIF-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            message,
+            type,
+            read: false,
+            createdAt: new Date().toLocaleString(),
+        }
+
+        setNotifications((prev) => [newNotification, ...prev].slice(0, 20))
+    }
+
+    function markNotificationAsRead(notificationId) {
+        setNotifications((prev) =>
+            prev.map((notification) =>
+                notification.id === notificationId
+                    ? { ...notification, read: true }
+                    : notification
+            )
         )
     }
 
@@ -272,6 +308,7 @@ function App() {
             id: `ORD-${Date.now()}`,
             restaurantId,
             restaurantName,
+            restaurant_name: restaurantName,
             createdAt: new Date().toLocaleString(),
             status: 'Placed',
             total: cartTotal,
@@ -285,8 +322,10 @@ function App() {
 
         setOrderHistory((prev) => [order, ...prev].slice(0, 10))
         buildRememberedItemsFromOrder(order)
+        addNotification(`Your order from ${restaurantName} has been placed.`, 'placed')
+
         setCart([])
-        setView('orderAgain')
+        setView('currentOrders')
     }
 
     function reorderSingleItem(rememberedItem) {
@@ -325,6 +364,27 @@ function App() {
         setView('restaurant')
     }
 
+    function simulateOrderStatusUpdate(orderId, nextStatus) {
+        setOrderHistory((prev) =>
+            prev.map((order) =>
+                order.id === orderId
+                    ? {
+                          ...order,
+                          status: nextStatus,
+                      }
+                    : order
+            )
+        )
+
+        const updatedOrder = orderHistory.find((order) => order.id === orderId)
+        if (updatedOrder) {
+            addNotification(
+                `Your order from ${updatedOrder.restaurantName} is now ${nextStatus.toLowerCase()}.`,
+                nextStatus.toLowerCase().replaceAll(' ', '_')
+            )
+        }
+    }
+
     return (
         <div className="app-shell">
             <header className="topbar">
@@ -360,6 +420,12 @@ function App() {
                     </button>
                     <button className={view === 'orderAgain' ? 'nav active' : 'nav'} onClick={() => setView('orderAgain')}>
                         Order Again
+                    </button>
+                    <button className={view === 'notifications' ? 'nav active' : 'nav'} onClick={() => setView('notifications')}>
+                        Notifications
+                    </button>
+                    <button className={view === 'currentOrders' ? 'nav active' : 'nav'} onClick={() => setView('currentOrders')}>
+                        Current Orders
                     </button>
                     <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
                         Restaurant
@@ -617,6 +683,75 @@ function App() {
                         </>
                     )}
 
+                    {view === 'notifications' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Notifications</h2>
+                                <p className="muted">
+                                    Stay updated as your order moves through different stages.
+                                </p>
+                            </section>
+
+                            <section className="section-card">
+                                <NotificationList
+                                    notifications={notifications}
+                                    onMarkRead={markNotificationAsRead}
+                                />
+                            </section>
+                        </>
+                    )}
+
+                    {view === 'currentOrders' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Current Orders</h2>
+                                <p className="muted">
+                                    Track the status of your active orders in real time.
+                                </p>
+                            </section>
+
+                            {activeOrders.length === 0 ? (
+                                <section className="section-card">
+                                    <p className="muted">No active orders right now.</p>
+                                </section>
+                            ) : (
+                                <section className="stack-list">
+                                    {activeOrders.map((order) => (
+                                        <article key={order.id} className="section-card">
+                                            <OrderStatusCard order={order} />
+                                            <div className="row gap-sm" style={{ marginTop: '12px' }}>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Confirmed')}
+                                                >
+                                                    Mark Confirmed
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Preparing')}
+                                                >
+                                                    Mark Preparing
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Out for Delivery')}
+                                                >
+                                                    Mark Out for Delivery
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Completed')}
+                                                >
+                                                    Mark Completed
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+                        </>
+                    )}
+
                     {view === 'restaurant' && selectedRestaurant && (
                         <>
                             <section className="restaurant-hero">
@@ -677,7 +812,10 @@ function App() {
                             <section className="placeholder-grid">
                                 <article className="placeholder-card">
                                     <h3>Notifications</h3>
-                                    <p className="muted">Reserved for teammate notification feature.</p>
+                                    <p className="muted">View real-time updates about your order.</p>
+                                    <button className="primary-btn" onClick={() => setView('notifications')}>
+                                        Open notifications
+                                    </button>
                                 </article>
                                 <article className="placeholder-card">
                                     <h3>ETA Tracking</h3>
