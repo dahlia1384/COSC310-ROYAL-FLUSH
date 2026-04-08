@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
 import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
 import ETABox from './components/common/ETABox';
+import {createOrder, fetchOrdersByCustomer, updateOrderStatus, payForOrder, fetchDelivery,} from './api/orders';
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
@@ -181,9 +182,22 @@ function App() {
         restaurantName: selectedRestaurant?.name || "",
     };
 
-    const selectedDelivery = {
-        delivery_time: new Date(),
-    };    
+    const [selectedDelivery, setSelectedDelivery] = useState(null);
+
+    useEffect(() => {
+        async function loadDelivery() {
+            if (!selectedOrder?.id) return;
+
+            try {
+                const data = await fetchDelivery(selectedOrder.id);
+                setSelectedDelivery(data);
+            } catch {
+                setSelectedDelivery(null);
+            }
+        }
+
+        loadDelivery();
+    }, [selectedOrder]);   
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -278,31 +292,52 @@ function App() {
         })
     }
 
-    function checkoutCart() {
+    async function checkoutCart() {
         if (cart.length === 0) return
 
         const restaurantId = cart[0].restaurantId
         const restaurantName = cart[0].restaurantName
-
-        const order = {
-            id: `ORD-${Date.now()}`,
-            restaurantId,
-            restaurantName,
-            createdAt: new Date().toLocaleString(),
-            status: 'Placed',
-            total: cartTotal,
+        
+        const orderData = {
+            restaurant_id: restaurantId,
+            customer_id: currentUser?.id || "demo-user", // ✅ REQUIRED FIELD
+            delivery_method: "car",                      // ✅ REQUIRED FIELD
+            customer_city: selectedRestaurant?.address || "City_1", // ✅ REQUIRED
             items: cart.map((item) => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
+                menu_item_id: item.id,
                 quantity: item.quantity,
             })),
         }
+        try{
+            const createdOrder = await createOrder(orderData)
+            
+            const order = {
+                id: createdOrder.order_id,
+                restaurantId,
+                restaurantName,
+                createdAt: new Date().toLocaleString(),
+                status: 'Order Out for Delivery',
+                order_status: 'Order Out for Delivery',
+                total: cartTotal,
+                items: cart.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                })),
+                customer_city: orderData.customer_city,
+                delivery_method: orderData.delivery_method,
+            }
 
-        setOrderHistory((prev) => [order, ...prev].slice(0, 10))
-        buildRememberedItemsFromOrder(order)
-        setCart([])
-        setView('orderAgain')
+            setOrderHistory((prev) => [order, ...prev].slice(0, 10))
+            buildRememberedItemsFromOrder(order)
+            setCart([])
+            setView('orderAgain')
+
+        } catch (err) {
+            console.error(err)
+            alert("Order failed")
+        }
     }
 
     function reorderSingleItem(rememberedItem) {
@@ -803,6 +838,28 @@ function App() {
                                     <button className="primary-btn full" onClick={checkoutCart}>
                                         Place order
                                     </button>
+                                    <button onClick={async () => {
+                        const orders = await fetchOrdersByCustomer(currentUser?.id || "demo-user");
+                        console.log("Customer Orders:", orders);
+                    }}>
+                        Test Get My Orders
+                    </button>
+
+                    <button onClick={async () => {
+                        if (!selectedOrder?.id) return;
+                        await updateOrderStatus(selectedOrder.id, "Delivered");
+                        alert("Order marked as delivered");
+                    }}>
+                        Mark Order Delivered
+                    </button>
+
+                    <button onClick={async () => {
+                        if (!selectedOrder?.id) return;
+                        await payForOrder(selectedOrder.id, { amount: cartTotal });
+                        alert("Payment sent");
+                    }}>
+                        Pay for Order
+                    </button>
                                 </div>
                             </>
                         )}

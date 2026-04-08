@@ -1,4 +1,5 @@
-import ETABox from "../common/ETABox";
+import ETABox from "../components/common/ETABox";
+
 function StatusBadge({ available }) {
     return (
         <span className={available ? 'badge available' : 'badge unavailable'}>
