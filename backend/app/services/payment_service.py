@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.payment import PaymentAttempt
+from app.models.user import User
 from app.repositories.payment_repository import (
     create_payment_attempt,
     count_attempts_by_order_id,
@@ -12,7 +13,7 @@ from app.repositories.payment_repository import (
 from app.repositories.orders_repo import get_order_by_id, update_order_status, update_order_total
 from app.services.delivery_services import create_new_delivery
 
-ALLOWED_PAYMENT_METHODS = {"credit_card", "debit_card", "paypal"}
+ALLOWED_PAYMENT_METHODS = {"credit_card", "debit_card", "paypal", "wallet"}
 PRICE_SERVICE = os.getenv("PRICE_URL", "http://price_service:8002")
 NOTIFICATION_SERVICE = os.getenv("NOTIFICATION_URL", "http://notification_service:8001")
 
@@ -53,6 +54,21 @@ def _send_payment_notification(customer_id: str, order_id: str, amount: float):
     except Exception:
         pass
 
+def _send_payment_notification_for_wallet_topup(customer_id: str, amount: float):
+    try:
+        with httpx.Client(timeout=3.0) as client:
+            client.post(
+                f"{NOTIFICATION_SERVICE}/send-general",
+                json={
+                    "user_id": customer_id,
+                    "title": "Payment confirmed",
+                    "message": f"Your top up of ${amount:.2f} was successful for the wallet.",
+                    "type": "general",
+                },
+            )
+    except Exception:
+        pass
+
 
 def process_payment(db: Session, order_id: str, customer_id: str, payment_data):
     order = get_order_by_id(order_id)
@@ -72,8 +88,16 @@ def process_payment(db: Session, order_id: str, customer_id: str, payment_data):
     existing_attempts = get_attempts_by_order_id(db, order_id)
     if any(attempt.status == "success" for attempt in existing_attempts):
         raise HTTPException(status_code=400, detail="Order is already paid")
+    
+    user = db.query(User).filter(User.id == customer_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
 
     amount = _calculate_total(order, promo_code=payment_data.promo_code)
+
+    if payment_data.payment_method == "wallet" and user.wallet < amount:
+        raise HTTPException(status_code=400, detail="Insufficient funds in wallet")
 
     attempt_number = count_attempts_by_order_id(db, order_id) + 1
     is_success = payment_data.simulate_success
@@ -91,6 +115,10 @@ def process_payment(db: Session, order_id: str, customer_id: str, payment_data):
     create_payment_attempt(db, payment_attempt)
 
     if is_success:
+        if payment_data.payment_method == "wallet":
+            user.wallet -= amount
+            db.commit()
+            db.refresh(user)
         update_order_status(order_id, "Paid")
         update_order_total(order_id, amount)
         create_new_delivery(order)
@@ -118,3 +146,26 @@ def get_payment_attempt_history(db: Session, order_id: str, customer_id: str):
         raise HTTPException(status_code=403, detail="You are not allowed to view this order")
 
     return get_attempts_by_order_id(db, order_id)
+
+
+def process_payment_for_wallet(db: Session, customer_id: str, payment_data):
+    if payment_data.payment_method not in ALLOWED_PAYMENT_METHODS:
+        raise HTTPException(status_code=400, detail="Invalid payment method")
+    if payment_data.payment_method == "wallet":
+        raise HTTPException(status_code=400, detail="Wallet cannot be used to top up wallet")
+
+    user = db.query(User).filter(User.id == customer_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.wallet += payment_data.amount
+    db.commit()
+    db.refresh(user)
+    _send_payment_notification_for_wallet_topup(customer_id, payment_data.amount)
+
+    return {
+        "message": "Payment successful",
+        "customer_id": customer_id,
+        "amount": payment_data.amount,
+        "new_wallet_balance": user.wallet,
+    }

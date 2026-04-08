@@ -20,13 +20,13 @@ router = APIRouter (prefix = "/orders", tags = ["orders"])
 def post_order(payload: OrderCreate):
     return create_new_order(payload)
 
-@router.get("/{order_id}", response_model = Order)
-def get_single_order(order_id: str):
-    return get_order(order_id)
-
 @router.get("/customer/{customer_id}", response_model = List[Order])
 def get_orders_by_customer(customer_id:str):
     return list_customer_orders(customer_id)
+
+@router.get("/{order_id}", response_model = Order)
+def get_single_order(order_id: str):
+    return get_order(order_id)
 
 @router.put("/{order_id}/status", response_model = Order)
 def get_order_status(order_id: str, payload: OrderStatusUpdate):

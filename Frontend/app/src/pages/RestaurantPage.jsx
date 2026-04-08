@@ -1,3 +1,5 @@
+import ETABox from "../components/common/ETABox";
+
 function StatusBadge({ available }) {
     return (
         <span className={available ? 'badge available' : 'badge unavailable'}>
@@ -6,7 +8,7 @@ function StatusBadge({ available }) {
     )
 }
 
-export default function RestaurantPage({ restaurant, onToggleFavourite }) {
+export default function RestaurantPage({ restaurant, order, delivery, onToggleFavourite }) {
     return (
         <div className="page-stack">
             <section className="restaurant-hero">
@@ -58,9 +60,11 @@ export default function RestaurantPage({ restaurant, onToggleFavourite }) {
 
                 <article className="placeholder-card">
                     <h3>ETA / Live Order Tracking</h3>
-                    <p className="subtle">
-                        Placeholder for teammate feature. Add current order status and ETA here.
-                    </p>
+                    <ETABox
+                         order={order}           
+                         restaurant={restaurant}
+                         delivery={delivery}
+                     />
                 </article>
             </section>
         </div>

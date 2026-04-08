@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
-import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
+import {
+  fetchRestaurants,
+  fetchRestaurantMenu,
+  fetchCurrentUser,
+  getWallet,
+  putWallet,
+  placeOrder,
+  payOrder,
+  fetchCustomerOrders,
+} from './api'
+import ETABox from './components/common/ETABox'
+import { fetchDelivery } from './api/orders'
+import LoginPage from './pages/LoginPage'
 import NotificationList from './components/common/NotificationList'
 import OrderStatusCard from './components/common/OrderStatusCard'
 
@@ -27,7 +39,6 @@ function currency(value) {
 function App() {
     const [search, setSearch] = useState('')
     const [view, setView] = useState('discover')
-    const [role, setRole] = useState('CUSTOMER')
 
     const [restaurants, setRestaurants] = useState([])
     const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
@@ -41,9 +52,7 @@ function App() {
     const [favouriteIds, setFavouriteIds] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.favourites, [])
     )
-    const [orderHistory, setOrderHistory] = useState(() =>
-        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.orders, [])
-    )
+    const [orderHistory, setOrderHistory] = useState([])
     const [rememberedItems, setRememberedItems] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
     )
@@ -61,14 +70,12 @@ function App() {
 
     const [currentUser, setCurrentUser] = useState(null)
     const [authMode, setAuthMode] = useState('preview')
+    const [showAuth, setShowAuth] = useState(false)
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
     }, [favouriteIds])
 
-    useEffect(() => {
-        localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orderHistory))
-    }, [orderHistory])
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.remembered, JSON.stringify(rememberedItems))
@@ -178,10 +185,6 @@ function App() {
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-
-    const activeOrders = orderHistory.filter(
-        (order) => !['Completed', 'Cancelled'].includes(order.status)
-    )
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -298,17 +301,38 @@ function App() {
         })
     }
 
-    function checkoutCart() {
+    async function checkoutCart() {
         if (cart.length === 0) return
+        if (!currentUser) { setShowAuth(true); return }
+
+        setCheckoutLoading(true)
+        setCheckoutError('')
 
         const restaurantId = cart[0].restaurantId
         const restaurantName = cart[0].restaurantName
+        const customer_city = selectedRestaurant?.address || 'City_1'
+
+        try {
+            const created = await placeOrder({
+                restaurant_id: restaurantId,
+                customer_id: currentUser.id,
+                delivery_method: deliveryMethod,
+                customer_city,
+                items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
+            })
+
+            const orderId = created.order_id
+
+            const paid = await payOrder(orderId, {
+                customer_id: currentUser.id,
+                payment_method: paymentMethod,
+                simulate_success: true,
+            })
 
         const order = {
             id: `ORD-${Date.now()}`,
             restaurantId,
             restaurantName,
-            restaurant_name: restaurantName,
             createdAt: new Date().toLocaleString(),
             status: 'Placed',
             total: cartTotal,
@@ -322,10 +346,8 @@ function App() {
 
         setOrderHistory((prev) => [order, ...prev].slice(0, 10))
         buildRememberedItemsFromOrder(order)
-        addNotification(`Your order from ${restaurantName} has been placed.`, 'placed')
-
         setCart([])
-        setView('currentOrders')
+        setView('orderAgain')
     }
 
     function reorderSingleItem(rememberedItem) {
@@ -337,6 +359,38 @@ function App() {
         addToCart(restaurant.id, liveItem)
         setSelectedRestaurantId(restaurant.id)
         setView('restaurant')
+    }
+
+    function handleAuthSuccess(user, token) {
+        setCurrentUser(user)
+        setAuthMode('live')
+        setShowAuth(false)
+        localStorage.setItem('auth_token', token)
+    }
+
+    async function handleAddFunds() {
+        const amount = parseFloat(addFundsAmount)
+        if (!amount || amount <= 0) { setAddFundsError('Enter a valid amount'); return }
+        setAddFundsLoading(true)
+        setAddFundsError('')
+        try {
+            const data = await putWallet(currentUser.id, { amount, payment_method: addFundsMethod })
+            setWalletBalance(Number(data.wallet ?? data.new_balance ?? walletBalance + amount))
+            setShowAddFunds(false)
+            setAddFundsAmount('')
+        } catch (err) {
+            setAddFundsError(err.message || 'Payment failed')
+        } finally {
+            setAddFundsLoading(false)
+        }
+    } 
+
+    function handleSignOut() {
+        setCurrentUser(null)
+        setAuthMode('preview')
+        localStorage.removeItem('auth_token')
+        // clear the auth cookie
+        document.cookie = 'rf_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict'
     }
 
     function reorderWholeOrder(order) {
@@ -403,12 +457,26 @@ function App() {
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search restaurants or dishes"
                     />
-                    <select value={role} onChange={(e) => setRole(e.target.value)}>
-                        <option value="CUSTOMER">Customer</option>
-                        <option value="RESTAURANT_OWNER">Restaurant Owner Preview</option>
-                    </select>
+                </div>
+
+                <div className="auth-topbar">
+                    {currentUser ? (
+                        <>
+                            <span className="muted">{currentUser.email}</span>
+                            <button className="secondary-btn" onClick={handleSignOut}>Sign Out</button>
+                        </>
+                    ) : (
+                        <button className="primary-btn" onClick={() => setShowAuth(true)}>Sign In / Register</button>
+                    )}
                 </div>
             </header>
+
+            {showAuth && (
+                <LoginPage
+                    onAuthSuccess={handleAuthSuccess}
+                    onCancel={() => setShowAuth(false)}
+                />
+            )}
 
             <div className="shell-grid">
                 <aside className="sidebar">
@@ -430,9 +498,11 @@ function App() {
                     <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
                         Restaurant
                     </button>
-                    <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
-                        Owner Dashboard
-                    </button>
+                    {currentUser?.role === 'RESTAURANT_OWNER' && (
+                        <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
+                            Owner Dashboard
+                        </button>
+                    )}
                 </aside>
 
                 <main className="content">
@@ -819,13 +889,17 @@ function App() {
                                 </article>
                                 <article className="placeholder-card">
                                     <h3>ETA Tracking</h3>
-                                    <p className="muted">Reserved for teammate ETA feature.</p>
+                                    <ETABox 
+                                        order={selectedOrder} 
+                                        restaurant={selectedRestaurant} 
+                                        delivery={selectedDelivery} 
+                                    />
                                 </article>
                             </section>
                         </>
                     )}
 
-                    {view === 'owner' && (
+                    {view === 'owner' && currentUser?.role === 'RESTAURANT_OWNER' && (
                         <>
                             <section className="section-card">
                                 <h2>Owner Dashboard</h2>
@@ -891,6 +965,57 @@ function App() {
 
                 <aside className="cart-panel">
                     <section className="section-card">
+                        <h2>Wallet</h2>
+                        {currentUser ? (
+                            <>
+                                <p className="muted">Available balance</p>
+                                <strong className="wallet-balance">
+                                    {walletLoading ? '…' : currency(walletBalance)}
+                                </strong>
+
+                                {!showAddFunds ? (
+                                    <div className="cart-footer">
+                                        <button className="secondary-btn full" onClick={() => { setShowAddFunds(true); setAddFundsError('') }}>
+                                            Add Funds
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="cart-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="0.01"
+                                            placeholder="Amount (e.g. 20.00)"
+                                            value={addFundsAmount}
+                                            onChange={(e) => setAddFundsAmount(e.target.value)}
+                                        />
+                                        <select value={addFundsMethod} onChange={(e) => setAddFundsMethod(e.target.value)}>
+                                            <option value="credit_card">Credit card</option>
+                                            <option value="debit_card">Debit card</option>
+                                            <option value="paypal">PayPal</option>
+                                            <option value="bank_transfer">Bank transfer</option>
+                                        </select>
+                                        {addFundsError && <p className="muted" style={{ color: 'var(--color-text-danger)' }}>{addFundsError}</p>}
+                                        <button className="primary-btn full" onClick={handleAddFunds} disabled={addFundsLoading}>
+                                            {addFundsLoading ? 'Processing…' : 'Confirm'}
+                                        </button>
+                                        <button className="ghost-btn full" onClick={() => { setShowAddFunds(false); setAddFundsError('') }} disabled={addFundsLoading}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <p className="muted">Sign in to view and use your wallet.</p>
+                                <button className="primary-btn full" onClick={() => setShowAuth(true)}>
+                                    Sign In
+                                </button>
+                            </>
+                        )}
+                    </section>
+
+                    <section className="section-card">
                         <h2>Cart</h2>
 
                         {cart.length === 0 ? (
@@ -918,14 +1043,37 @@ function App() {
                                         <strong>Total</strong>
                                         <strong>{currency(cartTotal)}</strong>
                                     </div>
-                                    <button className="primary-btn full" onClick={checkoutCart}>
-                                        Place order
+
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                        Delivery method
+                                        <select value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} style={{ marginTop: 4 }}>
+                                            <option value="car">Car</option>
+                                            <option value="bike">Bike</option>
+                                            <option value="foot">Foot</option>
+                                        </select>
+                                    </label>
+
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                        Payment method
+                                        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ marginTop: 4 }}>
+                                            <option value="credit_card">Credit card</option>
+                                            <option value="debit_card">Debit card</option>
+                                            <option value="paypal">PayPal</option>
+                                            <option value="wallet">Wallet</option>
+                                        </select>
+                                    </label>
+
+                                    {checkoutError && <p className="auth-error">{checkoutError}</p>}
+
+                                    <button className="primary-btn full" onClick={checkoutCart} disabled={checkoutLoading}>
+                                        {checkoutLoading ? 'Placing order…' : currentUser ? 'Place order' : 'Sign in to order'}
                                     </button>
                                 </div>
                             </>
                         )}
                     </section>
                 </aside>
+
             </div>
         </div>
     )
