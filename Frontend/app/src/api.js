@@ -75,3 +75,20 @@ export async function fetchCurrentUser(token) {
 
     return handleResponse(response)
 }
+export async function loginUser({ email, password }) {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password }),
+    })
+    return handleResponse(response)
+}
+
+export async function registerUser({ email, password, role }) {
+    const response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ email, password, role }),
+    })
+    return handleResponse(response)
+}
