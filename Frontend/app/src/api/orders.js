@@ -2,7 +2,6 @@ const API_BASE = 'http://localhost:8000';
 
 export async function fetchOrder(orderId) {
   const res = await fetch(`${API_BASE}/orders/${orderId}`);
-
   if (!res.ok) throw new Error("Failed to fetch order");
   return res.json();
 }
@@ -19,7 +18,6 @@ export async function createOrder(orderData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(orderData),
   });
-
   if (!res.ok) throw new Error("Failed to create order");
   return res.json();
 }
@@ -30,7 +28,6 @@ export async function updateOrderStatus(orderId, status) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ order_status: status }),
   });
-
   if (!res.ok) throw new Error("Failed to update order status");
   return res.json();
 }
@@ -39,16 +36,21 @@ export async function payForOrder(orderId, paymentData) {
   const res = await fetch(`${API_BASE}/orders/${orderId}/pay`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(paymentData),
+    body: JSON.stringify({
+      amount: paymentData.amount,
+      method: paymentData.method || "card" // replace with "credit_card"/"debit_card"/"cash" if needed
+    }),
   });
-
-  if (!res.ok) throw new Error("Payment failed");
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(err);
+    throw new Error("Payment failed");
+  }
   return res.json();
 }
 
 export async function fetchDelivery(orderId) {
   const res = await fetch(`${API_BASE}/deliveries/${orderId}`);
-
   if (!res.ok) throw new Error("Failed to fetch delivery");
   return res.json();
 }
@@ -59,8 +61,6 @@ export async function updateDeliveryStatus(orderId, deliveryStatus) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ delivery_status: deliveryStatus }),
   });
-
   if (!res.ok) throw new Error("Failed to update delivery status");
   return res.json();
 }
-

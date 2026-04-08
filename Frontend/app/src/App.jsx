@@ -849,7 +849,7 @@ useEffect(() => {
                                         try {
                                             const orders = await fetchOrdersByCustomer("1");
                                             console.log("Customer Orders:", orders);
-                                            alert("Check console (F12) for orders");
+                                            alert("Check console (F12)");
                                         } catch (err) {
                                             console.error(err);
                                             alert("Failed to fetch orders");
@@ -861,29 +861,29 @@ useEffect(() => {
                                     <button onClick={async () => {
                                         try {
                                             if (!selectedOrder?.id) {
-                                                alert("No order ID yet");
+                                                alert("Place an order first");
                                                 return;
                                             }
 
-                                            await updateOrderStatus(selectedOrder.id, "Delivered");
-                                            alert("Order marked as delivered");
+                                            await updateOrderStatus(selectedOrder.id, "Order Out for Delivery");
+                                            alert("Order is now out for delivery");
                                         } catch (err) {
                                             console.error(err);
                                             alert("Failed to update order");
                                         }
                                     }}>
-                                        Mark Order Delivered
+                                        Start Delivery
                                     </button>
 
                                     <button onClick={async () => {
                                         try {
                                             if (!selectedOrder?.id) {
-                                                alert("No order ID yet");
+                                                alert("Place an order first");
                                                 return;
                                             }
 
                                             await payForOrder(selectedOrder.id, { amount: cartTotal || 10 });
-                                            alert("Payment sent");
+                                            alert("Payment successful");
                                         } catch (err) {
                                             console.error(err);
                                             alert("Payment failed");

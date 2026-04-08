@@ -1,24 +1,26 @@
 import { useEffect, useState } from "react";
 
 function ETABox({ order, restaurant, delivery }) {
-  const [etaText, setEtaText] = useState("Loading ETA...");
+  const [etaText, setEtaText] = useState("No order yet");
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!order) {
-        setEtaText("No order yet");
-        return;
-      }
+    if (!order) {
+      setEtaText("No order yet");
+      return;
+    }
 
+    const interval = setInterval(() => {
       const now = new Date();
 
-      const userCity = order.customer_city || "";
-      const restaurantCity = restaurant?.address || "";
-      const method = order.delivery_method?.toLowerCase() || "car";
+      const method = (order.delivery_method || "car").toLowerCase();
 
-      let deliveryMinutes = 15; // default fallback
+      // CITY-BASED LOGIC
+      const userCity = (order.customer_city || "").toLowerCase();
+      const restaurantCity = (restaurant?.address || "").toLowerCase();
+      const sameCity = userCity && restaurantCity && restaurantCity.includes(userCity);
 
-      if (userCity === restaurantCity) {
+      let deliveryMinutes = 15;
+      if (sameCity) {
         if (method === "car") deliveryMinutes = 10;
         else if (method === "bike") deliveryMinutes = 20;
         else if (method === "walk") deliveryMinutes = 25;
@@ -30,33 +32,32 @@ function ETABox({ order, restaurant, delivery }) {
 
       if (order.order_status === "Preparing Order") {
         setEtaText("Preparing Order...");
+        return;
       }
 
-      else if (order.order_status === "Order Out for Delivery") {
+      if (order.order_status === "Order Out for Delivery") {
         if (!delivery?.delivery_time) {
           setEtaText("Calculating ETA...");
           return;
         }
 
-        const eta = new Date(delivery.delivery_time);
-        eta.setMinutes(eta.getMinutes() + deliveryMinutes);
+        const startTime = new Date(delivery.delivery_time);
+        const etaTime = new Date(startTime.getTime() + deliveryMinutes * 60000);
 
-        const diff = Math.max(0, Math.floor((eta - now) / 1000));
-
+        const diff = Math.max(0, Math.floor((etaTime - now) / 1000));
         const minutes = Math.floor(diff / 60);
         const seconds = diff % 60;
 
         setEtaText(`ETA: ${minutes}m ${seconds}s`);
+        return;
       }
 
-      else if (order.order_status === "Order Delivered") {
+      if (order.order_status === "Order Delivered") {
         setEtaText("Delivered");
+        return;
       }
 
-      else {
-        setEtaText("Waiting for update...");
-      }
-
+      setEtaText("Waiting for update...");
     }, 1000);
 
     return () => clearInterval(interval);
@@ -70,3 +71,4 @@ function ETABox({ order, restaurant, delivery }) {
 }
 
 export default ETABox;
+
