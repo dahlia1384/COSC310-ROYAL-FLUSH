@@ -171,6 +171,7 @@ function App() {
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const walletBalance = Number(currentUser?.wallet ?? 0)
 
     const selectedOrder = orderHistory.find(
         (o) => o.restaurantId === selectedRestaurantId
@@ -363,6 +364,10 @@ useEffect(() => {
         setShowAuth(false)
         localStorage.setItem('auth_token', token)
     }
+
+    function handleAddFunds() {
+    alert('Add Funds modal coming next')
+    }  
 
     function handleSignOut() {
         setCurrentUser(null)
@@ -845,6 +850,30 @@ useEffect(() => {
 
                 <aside className="cart-panel">
                     <section className="section-card">
+                        <h2>Wallet</h2>
+
+                        {currentUser ? (
+                            <>
+                                <p className="muted">Available balance</p>
+                                <strong className="wallet-balance">{currency(walletBalance)}</strong>
+
+                                <div className="cart-footer">
+                                    <button className="secondary-btn full" onClick={handleAddFunds}>
+                                        Add Funds
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="muted">Sign in to view and use your wallet.</p>
+                                <button className="primary-btn full" onClick={() => setShowAuth(true)}>
+                                    Sign In
+                                </button>
+                            </>
+                        )}
+                    </section>
+
+                    <section className="section-card">
                         <h2>Cart</h2>
 
                         {cart.length === 0 ? (
@@ -923,11 +952,12 @@ useEffect(() => {
                                     }}>
                                         Pay for Order
                                     </button>
-                                </div> 
+                                </div>
                             </>
                         )}
                     </section>
                 </aside>
+
             </div>
         </div>
     )

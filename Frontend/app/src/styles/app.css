@@ -217,7 +217,13 @@ select {
 .cart-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+}
+.wallet-balance {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 8px 0 12px;
 }
 
 .stack-list {
