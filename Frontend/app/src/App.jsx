@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
-import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
+import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser, getWallet, putWallet, placeOrder, payOrder, fetchCustomerOrders } from './api'
 import ETABox from './components/common/ETABox';
-import {createOrder, fetchOrdersByCustomer, updateOrderStatus, payForOrder, fetchDelivery,} from './api/orders';
+import { fetchDelivery } from './api/orders';
 import LoginPage from './pages/LoginPage'
 
 const STORAGE_KEYS = {
@@ -40,9 +40,7 @@ function App() {
     const [favouriteIds, setFavouriteIds] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.favourites, [])
     )
-    const [orderHistory, setOrderHistory] = useState(() =>
-        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.orders, [])
-    )
+    const [orderHistory, setOrderHistory] = useState([])
     const [rememberedItems, setRememberedItems] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
     )
@@ -63,9 +61,6 @@ function App() {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
     }, [favouriteIds])
 
-    useEffect(() => {
-        localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orderHistory))
-    }, [orderHistory])
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.remembered, JSON.stringify(rememberedItems))
@@ -171,7 +166,64 @@ function App() {
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const walletBalance = Number(currentUser?.wallet ?? 0)
+
+    const [walletBalance, setWalletBalance] = useState(0)
+    const [walletLoading, setWalletLoading] = useState(false)
+    const [deliveryMethod, setDeliveryMethod] = useState('car')
+    const [paymentMethod, setPaymentMethod] = useState('credit_card')
+    const [checkoutError, setCheckoutError] = useState('')
+    const [checkoutLoading, setCheckoutLoading] = useState(false)
+    const [showAddFunds, setShowAddFunds] = useState(false)
+    const [addFundsAmount, setAddFundsAmount] = useState('')
+    const [addFundsMethod, setAddFundsMethod] = useState('credit_card')
+    const [addFundsLoading, setAddFundsLoading] = useState(false)
+    const [addFundsError, setAddFundsError] = useState('')
+
+    useEffect(() => {
+        async function loadWallet() {
+            if (!currentUser) { setWalletBalance(0); return }
+            try {
+                setWalletLoading(true)
+                const data = await getWallet()
+                setWalletBalance(Number(data.wallet ?? 0))
+            } catch {
+                setWalletBalance(0)
+            } finally {
+                setWalletLoading(false)
+            }
+        }
+        loadWallet()
+    }, [currentUser])
+
+    useEffect(() => {
+        async function loadOrders() {
+            if (!currentUser) { setOrderHistory([]); return }
+            try {
+                const orders = await fetchCustomerOrders(currentUser.id)
+                const mapped = orders.map((o) => {
+                    const restaurant = restaurantsWithUi.find((r) => r.id === o.restaurant_id)
+                    return {
+                        id: o.order_id,
+                        restaurantId: o.restaurant_id,
+                        restaurantName: restaurant?.name ?? o.restaurant_id,
+                        createdAt: new Date(o.order_time).toLocaleString(),
+                        status: o.order_status,
+                        total: o.total ?? 0,
+                        items: o.items.map((i) => {
+                            const menuItem = restaurant?.menu.find((m) => m.id === i.menu_item_id)
+                            return { id: i.menu_item_id, name: menuItem?.name ?? i.menu_item_id, price: menuItem?.price ?? 0, quantity: i.quantity }
+                        }),
+                        customer_city: o.customer_city,
+                        delivery_method: o.delivery_method,
+                    }
+                })
+                setOrderHistory(mapped)
+            } catch {
+                setOrderHistory([])
+            }
+        }
+        loadOrders()
+    }, [currentUser])
 
     const selectedOrder = orderHistory.find(
         (o) => o.restaurantId === selectedRestaurantId
@@ -301,49 +353,52 @@ useEffect(() => {
 
     async function checkoutCart() {
         if (cart.length === 0) return
+        if (!currentUser) { setShowAuth(true); return }
+
+        setCheckoutLoading(true)
+        setCheckoutError('')
 
         const restaurantId = cart[0].restaurantId
         const restaurantName = cart[0].restaurantName
-        
-        const orderData = {
-            restaurant_id: restaurantId,
-            customer_id: currentUser?.id || "demo-user", // ✅ REQUIRED FIELD
-            delivery_method: "car",                      // ✅ REQUIRED FIELD
-            customer_city: selectedRestaurant?.address || "City_1", // ✅ REQUIRED
-            items: cart.map((item) => ({
-                menu_item_id: item.id,
-                quantity: item.quantity,
-            })),
-        }
-        try{
-            const createdOrder = await createOrder(orderData)
-            
+        const customer_city = selectedRestaurant?.address || 'City_1'
+
+        try {
+            const created = await placeOrder({
+                restaurant_id: restaurantId,
+                customer_id: currentUser.id,
+                delivery_method: deliveryMethod,
+                customer_city,
+                items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
+            })
+
+            const orderId = created.order_id
+
+            const paid = await payOrder(orderId, {
+                customer_id: currentUser.id,
+                payment_method: paymentMethod,
+                simulate_success: true,
+            })
+
             const order = {
-                id: createdOrder.order_id || createdOrder.id,
+                id: orderId,
                 restaurantId,
                 restaurantName,
                 createdAt: new Date().toLocaleString(),
-                status: 'Order Out for Delivery',
-                order_status: 'Order Out for Delivery',
-                total: cartTotal,
-                items: cart.map((item) => ({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                })),
-                customer_city: orderData.customer_city,
-                delivery_method: orderData.delivery_method,
+                status: paid.order_status,
+                total: paid.amount,
+                items: cart.map((item) => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity })),
+                customer_city,
+                delivery_method: deliveryMethod,
             }
 
             setOrderHistory((prev) => [order, ...prev].slice(0, 10))
             buildRememberedItemsFromOrder(order)
             setCart([])
             setView('orderAgain')
-
         } catch (err) {
-            console.error(err)
-            alert("Order failed")
+            setCheckoutError(err.message || 'Order failed')
+        } finally {
+            setCheckoutLoading(false)
         }
     }
 
@@ -365,9 +420,22 @@ useEffect(() => {
         localStorage.setItem('auth_token', token)
     }
 
-    function handleAddFunds() {
-    alert('Add Funds modal coming next')
-    }  
+    async function handleAddFunds() {
+        const amount = parseFloat(addFundsAmount)
+        if (!amount || amount <= 0) { setAddFundsError('Enter a valid amount'); return }
+        setAddFundsLoading(true)
+        setAddFundsError('')
+        try {
+            const data = await putWallet(currentUser.id, { amount, payment_method: addFundsMethod })
+            setWalletBalance(Number(data.wallet ?? data.new_balance ?? walletBalance + amount))
+            setShowAddFunds(false)
+            setAddFundsAmount('')
+        } catch (err) {
+            setAddFundsError(err.message || 'Payment failed')
+        } finally {
+            setAddFundsLoading(false)
+        }
+    } 
 
     function handleSignOut() {
         setCurrentUser(null)
@@ -851,17 +919,44 @@ useEffect(() => {
                 <aside className="cart-panel">
                     <section className="section-card">
                         <h2>Wallet</h2>
-
                         {currentUser ? (
                             <>
                                 <p className="muted">Available balance</p>
-                                <strong className="wallet-balance">{currency(walletBalance)}</strong>
+                                <strong className="wallet-balance">
+                                    {walletLoading ? '…' : currency(walletBalance)}
+                                </strong>
 
-                                <div className="cart-footer">
-                                    <button className="secondary-btn full" onClick={handleAddFunds}>
-                                        Add Funds
-                                    </button>
-                                </div>
+                                {!showAddFunds ? (
+                                    <div className="cart-footer">
+                                        <button className="secondary-btn full" onClick={() => { setShowAddFunds(true); setAddFundsError('') }}>
+                                            Add Funds
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="cart-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="0.01"
+                                            placeholder="Amount (e.g. 20.00)"
+                                            value={addFundsAmount}
+                                            onChange={(e) => setAddFundsAmount(e.target.value)}
+                                        />
+                                        <select value={addFundsMethod} onChange={(e) => setAddFundsMethod(e.target.value)}>
+                                            <option value="credit_card">Credit card</option>
+                                            <option value="debit_card">Debit card</option>
+                                            <option value="paypal">PayPal</option>
+                                            <option value="bank_transfer">Bank transfer</option>
+                                        </select>
+                                        {addFundsError && <p className="muted" style={{ color: 'var(--color-text-danger)' }}>{addFundsError}</p>}
+                                        <button className="primary-btn full" onClick={handleAddFunds} disabled={addFundsLoading}>
+                                            {addFundsLoading ? 'Processing…' : 'Confirm'}
+                                        </button>
+                                        <button className="ghost-btn full" onClick={() => { setShowAddFunds(false); setAddFundsError('') }} disabled={addFundsLoading}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         ) : (
                             <>
@@ -902,55 +997,29 @@ useEffect(() => {
                                         <strong>{currency(cartTotal)}</strong>
                                     </div>
 
-                                    <button className="primary-btn full" onClick={checkoutCart}>
-                                        Place order
-                                    </button>
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                        Delivery method
+                                        <select value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} style={{ marginTop: 4 }}>
+                                            <option value="car">Car</option>
+                                            <option value="bike">Bike</option>
+                                            <option value="foot">Foot</option>
+                                        </select>
+                                    </label>
 
-                                    <button onClick={async () => {
-                                        try {
-                                            const orders = await fetchOrdersByCustomer("1");
-                                            console.log("Customer Orders:", orders);
-                                            alert("Check console (F12)");
-                                        } catch (err) {
-                                            console.error(err);
-                                            alert("Failed to fetch orders");
-                                        }
-                                    }}>
-                                        Test Get My Orders
-                                    </button>
+                                    <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                        Payment method
+                                        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ marginTop: 4 }}>
+                                            <option value="credit_card">Credit card</option>
+                                            <option value="debit_card">Debit card</option>
+                                            <option value="paypal">PayPal</option>
+                                            <option value="wallet">Wallet</option>
+                                        </select>
+                                    </label>
 
-                                    <button onClick={async () => {
-                                        try {
-                                            if (!selectedOrder?.id) {
-                                                alert("Place an order first");
-                                                return;
-                                            }
+                                    {checkoutError && <p className="auth-error">{checkoutError}</p>}
 
-                                            await updateOrderStatus(selectedOrder.id, "Order Out for Delivery");
-                                            alert("Order is now out for delivery");
-                                        } catch (err) {
-                                            console.error(err);
-                                            alert("Failed to update order");
-                                        }
-                                    }}>
-                                        Start Delivery
-                                    </button>
-
-                                    <button onClick={async () => {
-                                        try {
-                                            if (!selectedOrder?.id) {
-                                                alert("Place an order first");
-                                                return;
-                                            }
-
-                                            await payForOrder(selectedOrder.id, { amount: cartTotal || 10 });
-                                            alert("Payment successful");
-                                        } catch (err) {
-                                            console.error(err);
-                                            alert("Payment failed");
-                                        }
-                                    }}>
-                                        Pay for Order
+                                    <button className="primary-btn full" onClick={checkoutCart} disabled={checkoutLoading}>
+                                        {checkoutLoading ? 'Placing order…' : currentUser ? 'Place order' : 'Sign in to order'}
                                     </button>
                                 </div>
                             </>

@@ -620,5 +620,37 @@
     "order_id": "d19c2256-4285-4512-88dc-a24c31d00657",
     "order_status": "Pending Payment",
     "order_time": "2026-04-08T03:36:37.724496"
+  },
+  {
+    "restaurant_id": "2",
+    "customer_id": "b25b3a24-91ee-4488-a992-8986c15250be",
+    "items": [
+      {
+        "menu_item_id": "2-briyani-rice",
+        "quantity": 1
+      }
+    ],
+    "delivery_method": "car",
+    "customer_city": "City_2",
+    "order_id": "e3e01f92-032a-40e4-a68b-80a5bd9c8b41",
+    "order_status": "Paid",
+    "order_time": "2026-04-08T18:13:47.412948",
+    "total": 18.78
+  },
+  {
+    "restaurant_id": "1",
+    "customer_id": "b25b3a24-91ee-4488-a992-8986c15250be",
+    "items": [
+      {
+        "menu_item_id": "1-salad",
+        "quantity": 1
+      }
+    ],
+    "delivery_method": "car",
+    "customer_city": "City_8",
+    "order_id": "91faab7e-4cc7-4878-93b4-17dc88def491",
+    "order_status": "Paid",
+    "order_time": "2026-04-08T18:14:23.360801",
+    "total": 14.77
   }
 ]
