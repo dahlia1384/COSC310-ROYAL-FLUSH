@@ -182,22 +182,27 @@ function App() {
         restaurantName: selectedRestaurant?.name || "",
     };
 
-    const [selectedDelivery, setSelectedDelivery] = useState(null);
+const [selectedDelivery, setSelectedDelivery] = useState({
+    delivery_time: new Date().toISOString()
+});
 
-    useEffect(() => {
-        async function loadDelivery() {
-            if (!selectedOrder?.id) return;
-
-            try {
-                const data = await fetchDelivery(selectedOrder.id);
-                setSelectedDelivery(data);
-            } catch {
-                setSelectedDelivery(null);
-            }
+useEffect(() => {
+    async function loadDelivery() {
+        if (!selectedOrder?.id) {
+            setSelectedDelivery({ delivery_time: new Date().toISOString() });
+            return;
         }
 
-        loadDelivery();
-    }, [selectedOrder]);   
+        try {
+            const data = await fetchDelivery(selectedOrder.id);
+            setSelectedDelivery(data);
+        } catch {
+            setSelectedDelivery({ delivery_time: new Date().toISOString() });
+        }
+    }
+
+    loadDelivery();
+}, [selectedOrder]);   
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -312,7 +317,7 @@ function App() {
             const createdOrder = await createOrder(orderData)
             
             const order = {
-                id: createdOrder.order_id,
+                id: createdOrder.order_id || createdOrder.id,
                 restaurantId,
                 restaurantName,
                 createdAt: new Date().toLocaleString(),
@@ -835,32 +840,58 @@ function App() {
                                         <strong>Total</strong>
                                         <strong>{currency(cartTotal)}</strong>
                                     </div>
+
                                     <button className="primary-btn full" onClick={checkoutCart}>
                                         Place order
                                     </button>
+
                                     <button onClick={async () => {
-                        const orders = await fetchOrdersByCustomer(currentUser?.id || "demo-user");
-                        console.log("Customer Orders:", orders);
-                    }}>
-                        Test Get My Orders
-                    </button>
+                                        try {
+                                            const orders = await fetchOrdersByCustomer("1");
+                                            console.log("Customer Orders:", orders);
+                                            alert("Check console (F12) for orders");
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Failed to fetch orders");
+                                        }
+                                    }}>
+                                        Test Get My Orders
+                                    </button>
 
-                    <button onClick={async () => {
-                        if (!selectedOrder?.id) return;
-                        await updateOrderStatus(selectedOrder.id, "Delivered");
-                        alert("Order marked as delivered");
-                    }}>
-                        Mark Order Delivered
-                    </button>
+                                    <button onClick={async () => {
+                                        try {
+                                            if (!selectedOrder?.id) {
+                                                alert("No order ID yet");
+                                                return;
+                                            }
 
-                    <button onClick={async () => {
-                        if (!selectedOrder?.id) return;
-                        await payForOrder(selectedOrder.id, { amount: cartTotal });
-                        alert("Payment sent");
-                    }}>
-                        Pay for Order
-                    </button>
-                                </div>
+                                            await updateOrderStatus(selectedOrder.id, "Delivered");
+                                            alert("Order marked as delivered");
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Failed to update order");
+                                        }
+                                    }}>
+                                        Mark Order Delivered
+                                    </button>
+
+                                    <button onClick={async () => {
+                                        try {
+                                            if (!selectedOrder?.id) {
+                                                alert("No order ID yet");
+                                                return;
+                                            }
+
+                                            await payForOrder(selectedOrder.id, { amount: cartTotal || 10 });
+                                            alert("Payment sent");
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Payment failed");
+                                        }
+                                    }}>
+                                        Pay for Order
+                                    </button>
+                                </div> 
                             </>
                         )}
                     </section>

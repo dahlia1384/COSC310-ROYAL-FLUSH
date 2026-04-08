@@ -1,26 +1,28 @@
 import { useEffect, useState } from "react";
 
 function ETABox({ order, restaurant, delivery }) {
-  const [etaText, setEtaText] = useState("");
+  const [etaText, setEtaText] = useState("Loading ETA...");
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!order) return;
+      if (!order) {
+        setEtaText("No order yet");
+        return;
+      }
 
       const now = new Date();
 
-      const userCity = order.customer_city;
-      const restaurantCity = restaurant.address;
-      const method = order.delivery_method?.toLowerCase();
+      const userCity = order.customer_city || "";
+      const restaurantCity = restaurant?.address || "";
+      const method = order.delivery_method?.toLowerCase() || "car";
 
-      let deliveryMinutes = 0;
+      let deliveryMinutes = 15; // default fallback
 
       if (userCity === restaurantCity) {
         if (method === "car") deliveryMinutes = 10;
         else if (method === "bike") deliveryMinutes = 20;
         else if (method === "walk") deliveryMinutes = 25;
-      }
-      else {
+      } else {
         if (method === "car") deliveryMinutes = 20;
         else if (method === "bike") deliveryMinutes = 25;
         else if (method === "walk") deliveryMinutes = 35;
@@ -30,7 +32,12 @@ function ETABox({ order, restaurant, delivery }) {
         setEtaText("Preparing Order...");
       }
 
-      else if (order.order_status === "Order Out for Delivery" && delivery) {
+      else if (order.order_status === "Order Out for Delivery") {
+        if (!delivery?.delivery_time) {
+          setEtaText("Calculating ETA...");
+          return;
+        }
+
         const eta = new Date(delivery.delivery_time);
         eta.setMinutes(eta.getMinutes() + deliveryMinutes);
 
@@ -44,6 +51,10 @@ function ETABox({ order, restaurant, delivery }) {
 
       else if (order.order_status === "Order Delivered") {
         setEtaText("Delivered");
+      }
+
+      else {
+        setEtaText("Waiting for update...");
       }
 
     }, 1000);
