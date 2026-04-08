@@ -11,6 +11,7 @@ class OrderCreate(BaseModel):
     customer_id: str
     items: List[OrderItem]
     delivery_method: str
+    customer_city: str
 
     @validator("items")
     def validate_items_not_empty(cls, v):
@@ -27,6 +28,7 @@ class Order(BaseModel):
     order_time: datetime
     total: Optional[float] = None
     delivery_method: str
+    customer_city: str
     
 class OrderStatusUpdate(BaseModel):
     order_status: str = Field(min_length=1)
