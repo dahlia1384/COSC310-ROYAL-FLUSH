@@ -14,7 +14,7 @@ import ETABox from './components/common/ETABox'
 import { fetchDelivery } from './api/orders'
 import LoginPage from './pages/LoginPage'
 import NotificationList from './components/common/NotificationList'
-import OrderStatusCard from './components/common/OrderStatusCard'
+{/* import OrderStatusCard from './components/common/OrderStatusCard'*/}
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
@@ -302,32 +302,38 @@ function App() {
     }
 
     async function checkoutCart() {
-        if (cart.length === 0) return
-        if (!currentUser) { setShowAuth(true); return }
+    if (cart.length === 0) return
+    if (!currentUser) {
+        setShowAuth(true)
+        return
+    }
 
-        setCheckoutLoading(true)
-        setCheckoutError('')
+    setCheckoutLoading(true)
+    setCheckoutError('')
 
-        const restaurantId = cart[0].restaurantId
-        const restaurantName = cart[0].restaurantName
-        const customer_city = selectedRestaurant?.address || 'City_1'
+    const restaurantId = cart[0].restaurantId
+    const restaurantName = cart[0].restaurantName
+    const customer_city = selectedRestaurant?.address || 'City_1'
 
-        try {
-            const created = await placeOrder({
-                restaurant_id: restaurantId,
-                customer_id: currentUser.id,
-                delivery_method: deliveryMethod,
-                customer_city,
-                items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
-            })
+    try {
+        const created = await placeOrder({
+            restaurant_id: restaurantId,
+            customer_id: currentUser.id,
+            delivery_method: deliveryMethod,
+            customer_city,
+            items: cart.map((item) => ({
+                menu_item_id: item.id,
+                quantity: item.quantity,
+            })),
+        })
 
-            const orderId = created.order_id
+        const orderId = created.order_id
 
-            const paid = await payOrder(orderId, {
-                customer_id: currentUser.id,
-                payment_method: paymentMethod,
-                simulate_success: true,
-            })
+        await payOrder(orderId, {
+            customer_id: currentUser.id,
+            payment_method: paymentMethod,
+            simulate_success: true,
+        })
 
         const order = {
             id: `ORD-${Date.now()}`,
@@ -348,7 +354,12 @@ function App() {
         buildRememberedItemsFromOrder(order)
         setCart([])
         setView('orderAgain')
+    } catch (err) {
+        setCheckoutError(err.message || 'Failed to place order')
+    } finally {
+        setCheckoutLoading(false)
     }
+}
 
     function reorderSingleItem(rememberedItem) {
         const restaurant = restaurantsWithUi.find((r) => r.id === rememberedItem.restaurantId)
@@ -788,7 +799,27 @@ function App() {
                                 <section className="stack-list">
                                     {activeOrders.map((order) => (
                                         <article key={order.id} className="section-card">
-                                            <OrderStatusCard order={order} />
+                                            <div className="order-card">
+                                            <div className="row between start">
+                                                <div>
+                                                    <strong>{order.restaurantName}</strong>
+                                                    <p className="muted">{order.id}</p>
+                                                    <p className="muted">{order.createdAt}</p>
+                                                </div>
+                                                <div className="order-meta">
+                                                    <strong>{currency(order.total)}</strong>
+                                                    <span className="chip">{order.status}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="order-items-preview">
+                                                {order.items.map((item) => (
+                                                    <span key={`${order.id}-${item.id}`} className="preview-pill">
+                                                        {item.name} × {item.quantity}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
                                             <div className="row gap-sm" style={{ marginTop: '12px' }}>
                                                 <button
                                                     className="secondary-btn"

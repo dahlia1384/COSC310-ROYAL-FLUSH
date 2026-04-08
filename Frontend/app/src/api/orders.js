@@ -1,4 +1,4 @@
-import client from "./client";
+import { client } from "./client";
 
 export const fetchOrder = async (orderId) => {
   const response = await client.get(`/orders/${orderId}`);
