@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 class Restaurant(BaseModel):
     id: str
+    owner_id: str
     name: str
     cuisine: str | None = None
     address: str | None = None

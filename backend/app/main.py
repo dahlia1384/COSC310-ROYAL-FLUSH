@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from app.routers.restaurants import router as restaurants_router
@@ -15,11 +16,19 @@ import os
 
 app = FastAPI(title="Backend Service")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 PRICE_SERVICE = os.getenv("PRICE_URL", "http://price_service:8002")
 NOTIFICATION_SERVICE = os.getenv("NOTIFICATION_URL", "http://notification_service:8001")
-
-
-
 
 class OrderRequest(BaseModel):
     user_id: str

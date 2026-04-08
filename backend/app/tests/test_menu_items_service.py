@@ -34,7 +34,7 @@ def test_list_menu_items_for_restaurant_returns_matching_items(monkeypatch):
 
 
 def test_create_menu_item_adds_new_item(monkeypatch):
-    monkeypatch.setattr(menu_items_service, "get_restaurant_by_id", lambda restaurant_id: {"id": restaurant_id})
+    monkeypatch.setattr(menu_items_service, "get_restaurant_by_id", lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"})
     monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
 
     saved = {}
@@ -50,7 +50,7 @@ def test_create_menu_item_adds_new_item(monkeypatch):
         description=" classic dish "
     )
 
-    item = menu_items_service.create_menu_item("r1", payload)
+    item = menu_items_service.create_menu_item("r1", payload, owner_id="owner-1")
 
     assert item.restaurant_id == "r1"
     assert item.name == "Butter Chicken"
@@ -58,6 +58,26 @@ def test_create_menu_item_adds_new_item(monkeypatch):
     assert len(saved["items"]) == 1
     assert saved["items"][0]["restaurant_id"] == "r1"
 
+def test_create_menu_item_blocks_non_owner(monkeypatch):
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
+    monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
+
+    payload = MenuItemCreate(
+        name="Butter Chicken",
+        price=15.5,
+        description=None
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        menu_items_service.create_menu_item("r1", payload, owner_id="owner-2")
+
+    assert exc.value.status_code == 403
+    assert "not allowed" in exc.value.detail.lower()
 
 def test_create_menu_item_rejects_missing_restaurant(monkeypatch):
     def fake_get_restaurant_by_id(restaurant_id):
@@ -74,14 +94,14 @@ def test_create_menu_item_rejects_missing_restaurant(monkeypatch):
     )
 
     with pytest.raises(HTTPException) as exc:
-        menu_items_service.create_menu_item("missing", payload)
+        menu_items_service.create_menu_item("missing", payload, owner_id="owner-1")
 
     assert exc.value.status_code == 404
     assert "not found" in exc.value.detail.lower()
 
 
 def test_create_menu_item_with_blank_name_raises_error(monkeypatch):
-    monkeypatch.setattr(menu_items_service, "get_restaurant_by_id", lambda restaurant_id: {"id": restaurant_id})
+    monkeypatch.setattr(menu_items_service, "get_restaurant_by_id", lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"})
     monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
     monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
 
@@ -92,7 +112,7 @@ def test_create_menu_item_with_blank_name_raises_error(monkeypatch):
     )
 
     with pytest.raises(HTTPException) as exc:
-        menu_items_service.create_menu_item("r1", payload)
+        menu_items_service.create_menu_item("r1", payload, owner_id="owner-1")
 
     assert exc.value.status_code == 400
     assert exc.value.detail == "Menu item name cannot be empty."
@@ -143,17 +163,22 @@ def test_update_menu_item_updates_existing_item(monkeypatch):
     monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
     monkeypatch.setattr(
         menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(
+        menu_items_service,
         "save_all",
         lambda items: saved.setdefault("items", items)
     )
-
+    
     payload = MenuItemUpdate(
         name="  Butter Paneer  ",
         price=16.0,
         description=" vegetarian option "
     )
 
-    updated_item = menu_items_service.update_menu_item("m1", payload)
+    updated_item = menu_items_service.update_menu_item("m1", payload, owner_id="owner-1")
 
     assert updated_item.name == "Butter Paneer"
     assert updated_item.price == 16.0
@@ -173,8 +198,13 @@ def test_update_menu_item_with_blank_name_raises_error(monkeypatch):
     ]
 
     monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
     monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
-
+    
     payload = MenuItemUpdate(
         name="   ",
         price=16.0,
@@ -182,7 +212,7 @@ def test_update_menu_item_with_blank_name_raises_error(monkeypatch):
     )
 
     with pytest.raises(HTTPException) as exc:
-        menu_items_service.update_menu_item("m1", payload)
+        menu_items_service.update_menu_item("m1", payload, owner_id="owner-1")
 
     assert exc.value.status_code == 400
     assert exc.value.detail == "Menu item name cannot be empty."
@@ -190,6 +220,81 @@ def test_update_menu_item_with_blank_name_raises_error(monkeypatch):
 
 def test_update_menu_item_raises_404_when_missing(monkeypatch):
     monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
+    
+    payload = MenuItemUpdate(
+        name="Butter Paneer",
+        price=16.0,
+        description="vegetarian option"
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        menu_items_service.update_menu_item("missing", payload, owner_id="owner-1")
+
+    assert exc.value.status_code == 404
+    assert "not found" in exc.value.detail.lower()
+
+def test_update_menu_item_allows_owner(monkeypatch):
+    fake_items = [
+        {
+            "id": "m1",
+            "restaurant_id": "r1",
+            "name": "Butter Chicken",
+            "price": 15.5,
+            "description": "classic dish",
+        }
+    ]
+
+    saved = {}
+
+    monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(
+        menu_items_service,
+        "save_all",
+        lambda items: saved.setdefault("items", items)
+    )
+
+    payload = MenuItemUpdate(
+        name="  Butter Paneer  ",
+        price=16.0,
+        description=" vegetarian option "
+    )
+
+    updated_item = menu_items_service.update_menu_item("m1", payload, owner_id="owner-1")
+
+    assert updated_item.name == "Butter Paneer"
+    assert updated_item.price == 16.0
+    assert updated_item.description == "vegetarian option"
+    assert saved["items"][0]["name"] == "Butter Paneer"
+
+
+def test_update_menu_item_blocks_non_owner(monkeypatch):
+    fake_items = [
+        {
+            "id": "m1",
+            "restaurant_id": "r1",
+            "name": "Butter Chicken",
+            "price": 15.5,
+            "description": "classic dish",
+        }
+    ]
+
+    monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
     monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
 
     payload = MenuItemUpdate(
@@ -199,12 +304,12 @@ def test_update_menu_item_raises_404_when_missing(monkeypatch):
     )
 
     with pytest.raises(HTTPException) as exc:
-        menu_items_service.update_menu_item("missing", payload)
+        menu_items_service.update_menu_item("m1", payload, owner_id="owner-2")
 
-    assert exc.value.status_code == 404
-    assert "not found" in exc.value.detail.lower()
+    assert exc.value.status_code == 403
+    assert "not allowed" in exc.value.detail.lower()
 
-def test_delete_menu_item_removes_existing_item(monkeypatch):
+def test_delete_menu_item_removes_existing_item_for_owner(monkeypatch):
     fake_items = [
         {
             "id": "m1",
@@ -227,22 +332,56 @@ def test_delete_menu_item_removes_existing_item(monkeypatch):
     monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
     monkeypatch.setattr(
         menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(
+        menu_items_service,
         "save_all",
         lambda items: saved.setdefault("items", items)
     )
 
-    menu_items_service.delete_menu_item("m1")
+    menu_items_service.delete_menu_item("m1", owner_id="owner-1")
 
     assert len(saved["items"]) == 1
     assert saved["items"][0]["id"] == "m2"
 
+def test_delete_menu_item_blocks_non_owner(monkeypatch):
+    fake_items = [
+        {
+            "id": "m1",
+            "restaurant_id": "r1",
+            "name": "Butter Chicken",
+            "price": 15.5,
+            "description": "classic dish",
+        }
+    ]
 
-def test_delete_menu_item_raises_404_when_missing(monkeypatch):
-    monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
+    monkeypatch.setattr(menu_items_service, "load_all", lambda: fake_items)
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
     monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
 
     with pytest.raises(HTTPException) as exc:
-        menu_items_service.delete_menu_item("missing")
+        menu_items_service.delete_menu_item("m1", owner_id="owner-2")
+
+    assert exc.value.status_code == 403
+    assert "not allowed" in exc.value.detail.lower()
+
+def test_delete_menu_item_raises_404_when_missing(monkeypatch):
+    monkeypatch.setattr(menu_items_service, "load_all", lambda: [])
+    monkeypatch.setattr(
+        menu_items_service,
+        "get_restaurant_by_id",
+        lambda restaurant_id: {"id": restaurant_id, "owner_id": "owner-1"}
+    )
+    monkeypatch.setattr(menu_items_service, "save_all", lambda items: None)
+
+    with pytest.raises(HTTPException) as exc:
+        menu_items_service.delete_menu_item("missing", owner_id="owner-1")
 
     assert exc.value.status_code == 404
     assert "not found" in exc.value.detail.lower()
