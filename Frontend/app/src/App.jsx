@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
 import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
+import LoginPage from './pages/LoginPage'
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
@@ -24,7 +25,6 @@ function currency(value) {
 function App() {
     const [search, setSearch] = useState('')
     const [view, setView] = useState('discover')
-    const [role, setRole] = useState('CUSTOMER')
 
     const [restaurants, setRestaurants] = useState([])
     const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
@@ -55,6 +55,7 @@ function App() {
 
     const [currentUser, setCurrentUser] = useState(null)
     const [authMode, setAuthMode] = useState('preview')
+    const [showAuth, setShowAuth] = useState(false)
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
@@ -300,6 +301,21 @@ function App() {
         setView('restaurant')
     }
 
+    function handleAuthSuccess(user, token) {
+        setCurrentUser(user)
+        setAuthMode('live')
+        setShowAuth(false)
+        localStorage.setItem('auth_token', token)
+    }
+
+    function handleSignOut() {
+        setCurrentUser(null)
+        setAuthMode('preview')
+        localStorage.removeItem('auth_token')
+        // clear the auth cookie
+        document.cookie = 'rf_auth=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict'
+    }
+
     function reorderWholeOrder(order) {
         const restaurant = restaurantsWithUi.find((r) => r.id === order.restaurantId)
         if (!restaurant) return
@@ -343,12 +359,26 @@ function App() {
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search restaurants or dishes"
                     />
-                    <select value={role} onChange={(e) => setRole(e.target.value)}>
-                        <option value="CUSTOMER">Customer</option>
-                        <option value="RESTAURANT_OWNER">Restaurant Owner Preview</option>
-                    </select>
+                </div>
+
+                <div className="auth-topbar">
+                    {currentUser ? (
+                        <>
+                            <span className="muted">{currentUser.email}</span>
+                            <button className="secondary-btn" onClick={handleSignOut}>Sign Out</button>
+                        </>
+                    ) : (
+                        <button className="primary-btn" onClick={() => setShowAuth(true)}>Sign In / Register</button>
+                    )}
                 </div>
             </header>
+
+            {showAuth && (
+                <LoginPage
+                    onAuthSuccess={handleAuthSuccess}
+                    onCancel={() => setShowAuth(false)}
+                />
+            )}
 
             <div className="shell-grid">
                 <aside className="sidebar">
@@ -364,9 +394,11 @@ function App() {
                     <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
                         Restaurant
                     </button>
-                    <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
-                        Owner Dashboard
-                    </button>
+                    {currentUser?.role === 'RESTAURANT_OWNER' && (
+                        <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
+                            Owner Dashboard
+                        </button>
+                    )}
                 </aside>
 
                 <main className="content">
@@ -687,7 +719,7 @@ function App() {
                         </>
                     )}
 
-                    {view === 'owner' && (
+                    {view === 'owner' && currentUser?.role === 'RESTAURANT_OWNER' && (
                         <>
                             <section className="section-card">
                                 <h2>Owner Dashboard</h2>
