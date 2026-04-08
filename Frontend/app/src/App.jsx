@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
 import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser } from './api'
-import ETABox from './common/ETABox';
+import ETABox from './components/common/ETABox';
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
