@@ -66,7 +66,8 @@ def test_create_order_blocks_unavailable_menu_item(monkeypatch):
         restaurant_id="1",
         customer_id="cust-1",
         items=[{"menu_item_id": "m1", "quantity": 1}],
-        delivery_method="car"
+        delivery_method="car",
+        customer_city = "City_3"
     )
 
     with pytest.raises(HTTPException) as exc:
