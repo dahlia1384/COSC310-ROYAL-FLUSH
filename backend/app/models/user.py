@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, String, Double
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -23,3 +23,4 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    wallet = Column(Double, nullable=False, default=0.0)

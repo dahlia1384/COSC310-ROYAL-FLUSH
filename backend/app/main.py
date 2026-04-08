@@ -9,6 +9,7 @@ from app.services.data_service import get_orders_from_csv
 from app.routers.auth_router import router as auth_router
 from app.routers.order_router import router as order_router
 from app.routers.delivery_router import router as delivery_router
+from app.routers.wallet import router as wallet_router
 from app.schemas.order_schema import OrderItem
 import httpx
 import os
@@ -59,3 +60,4 @@ app.include_router(data_router)
 app.include_router(auth_router)
 app.include_router(order_router)
 app.include_router(delivery_router)
+app.include_router(wallet_router)
