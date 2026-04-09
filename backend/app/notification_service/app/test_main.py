@@ -1,6 +1,15 @@
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from main import app, notifications_db, preferences_db
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent))
+
 import main
+from main import router, notifications_db, preferences_db
+
+app = FastAPI()
+app.include_router(router)
 
 client = TestClient(app)
 
@@ -83,7 +92,6 @@ def test_mark_notification_as_read():
     assert response.status_code == 200
     assert response.json()["status"] == "notification marked as read"
     assert response.json()["notification"]["is_read"] is True
-    preferences_db.clear()
 
 
 def test_get_default_preferences():
@@ -148,6 +156,47 @@ def test_promo_notification_blocked_by_preferences():
         "title": "Promo",
         "message": "You got 10 percent off",
         "type": "promo_update"
+    })
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "notification blocked by user preferences"
+
+
+def test_notify_order_event_placed():
+    response = client.post("/notify-order-event", json={
+        "user_id": "1",
+        "order_id": "500",
+        "event": "placed"
+    })
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "notification sent"
+    assert response.json()["notification"]["title"] == "Order Placed"
+    assert response.json()["notification"]["order_id"] == "500"
+
+
+def test_notify_order_event_out_for_delivery():
+    response = client.post("/notify-order-event", json={
+        "user_id": "1",
+        "order_id": "500",
+        "event": "out_for_delivery"
+    })
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "notification sent"
+    assert response.json()["notification"]["title"] == "Out for Delivery"
+    assert response.json()["notification"]["type"] == "order_status_update"
+
+
+def test_notify_order_event_blocked_by_preferences():
+    client.put("/users/1/preferences", json={
+        "order_status_updates": False
+    })
+
+    response = client.post("/notify-order-event", json={
+        "user_id": "1",
+        "order_id": "500",
+        "event": "confirmed"
     })
 
     assert response.status_code == 200
