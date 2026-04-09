@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import json
 from pathlib import Path
 
-app = FastAPI(title="Price Service")
+router = APIRouter(tags=["price"])
 
 
 class OrderItem(BaseModel):
@@ -21,20 +21,14 @@ class OrderRequest(BaseModel):
     service_charge_rate: Optional[float] = Field(default=0.10, ge=0)
 
 
-DATA_PATH = Path("/app/data/menu_items.json")
-# FOR TESTING
+DATA_PATH = Path("/app/app/data/menu_items.json")
 if not DATA_PATH.exists():
     DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "menu_items.json"
 
 
-@app.get("/")
-def root():
+@router.get("/price")
+def price_root():
     return {"message": "Price service running"}
-
-
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
 
 
 def load_menu_items():
@@ -65,7 +59,7 @@ def get_discount_rate(promo_code: Optional[str]) -> float:
     return promo_map.get(promo_code.upper(), 0.0)
 
 
-@app.post("/calculate")
+@router.post("/calculate")
 def calculate_price(order: OrderRequest):
     menu_items = load_menu_items()
     menu_lookup = {item["id"]: item for item in menu_items if "id" in item}

@@ -1,9 +1,33 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime, UTC
 
-app = FastAPI(title="Notification Service")
+router = APIRouter(tags=["notifications"])
+
+
+ORDER_EVENT_TO_TITLE = {
+    "placed": "Order Placed",
+    "confirmed": "Order Confirmed",
+    "preparing": "Order Being Prepared",
+    "out_for_delivery": "Out for Delivery",
+    "delivered": "Order Delivered",
+    "completed": "Order Completed",
+    "cancelled": "Order Cancelled",
+}
+
+
+def build_order_event_message(order_id: str, event: str) -> str:
+    messages = {
+        "placed": f"Your order #{order_id} has been placed successfully.",
+        "confirmed": f"Your order #{order_id} has been confirmed.",
+        "preparing": f"Your order #{order_id} is now being prepared.",
+        "out_for_delivery": f"Your order #{order_id} is now out for delivery.",
+        "delivered": f"Your order #{order_id} has been delivered.",
+        "completed": f"Your order #{order_id} has been completed.",
+        "cancelled": f"Your order #{order_id} has been cancelled.",
+    }
+    return messages.get(event, f"Your order #{order_id} status was updated to {event}.")
 
 
 class GeneralNotificationRequest(BaseModel):
@@ -18,6 +42,20 @@ class StatusChangeNotificationRequest(BaseModel):
     order_id: str
     old_status: str = Field(..., min_length=1)
     new_status: str = Field(..., min_length=1)
+
+
+class OrderEventNotificationRequest(BaseModel):
+    user_id: str
+    order_id: str
+    event: Literal[
+        "placed",
+        "confirmed",
+        "preparing",
+        "out_for_delivery",
+        "delivered",
+        "completed",
+        "cancelled",
+    ]
 
 
 class ManagerAlertRequest(BaseModel):
@@ -84,8 +122,8 @@ def create_notification(
     notification_type: str,
     order_id: Optional[str] = None,
     old_status: Optional[str] = None,
-    new_status: Optional[str] = None
-):
+    new_status: Optional[str] = None,
+) -> Notification:
     global next_notification_id
 
     notification = Notification(
@@ -98,7 +136,7 @@ def create_notification(
         old_status=old_status,
         new_status=new_status,
         is_read=False,
-        created_at=datetime.utcnow().isoformat() + "Z"
+        created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     )
 
     notifications_db.append(notification)
@@ -106,22 +144,17 @@ def create_notification(
     return notification
 
 
-@app.get("/")
-def root():
+@router.get("/notifications")
+def notification_root():
     return {"message": "Notification service running"}
 
 
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-
-@app.get("/users/{user_id}/preferences")
+@router.get("/users/{user_id}/preferences")
 def get_user_preferences(user_id: str):
-    return get_or_create_preferences(user_id).dict()
+    return get_or_create_preferences(user_id).model_dump()
 
 
-@app.put("/users/{user_id}/preferences")
+@router.put("/users/{user_id}/preferences")
 def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     prefs = get_or_create_preferences(user_id)
 
@@ -135,39 +168,39 @@ def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     preferences_db[user_id] = prefs
     return {
         "status": "preferences updated",
-        "preferences": prefs.dict()
+        "preferences": prefs.model_dump(),
     }
 
 
-@app.post("/send-general")
+@router.post("/send-general")
 def send_general_notification(data: GeneralNotificationRequest):
     if not notification_allowed(data.user_id, data.type):
         return {
             "status": "notification blocked by user preferences",
             "user_id": data.user_id,
-            "type": data.type
+            "type": data.type,
         }
 
     notification = create_notification(
         user_id=data.user_id,
         title=data.title,
         message=data.message,
-        notification_type=data.type
+        notification_type=data.type,
     )
 
     return {
         "status": "notification sent",
-        "notification": notification.dict()
+        "notification": notification.model_dump(),
     }
 
 
-@app.post("/notify-status-change")
+@router.post("/notify-status-change")
 def notify_status_change(data: StatusChangeNotificationRequest):
     if not notification_allowed(data.user_id, "order_status_update"):
         return {
             "status": "notification blocked by user preferences",
             "user_id": data.user_id,
-            "type": "order_status_update"
+            "type": "order_status_update",
         }
 
     notification = create_notification(
@@ -177,16 +210,40 @@ def notify_status_change(data: StatusChangeNotificationRequest):
         notification_type="order_status_update",
         order_id=data.order_id,
         old_status=data.old_status,
-        new_status=data.new_status
+        new_status=data.new_status,
     )
 
     return {
         "status": "notification sent",
-        "notification": notification.dict()
+        "notification": notification.model_dump(),
     }
 
 
-@app.post("/notify-new-order")
+@router.post("/notify-order-event")
+def notify_order_event(data: OrderEventNotificationRequest):
+    if not notification_allowed(data.user_id, "order_status_update"):
+        return {
+            "status": "notification blocked by user preferences",
+            "user_id": data.user_id,
+            "type": "order_status_update",
+        }
+
+    notification = create_notification(
+        user_id=data.user_id,
+        title=ORDER_EVENT_TO_TITLE[data.event],
+        message=build_order_event_message(data.order_id, data.event),
+        notification_type="order_status_update",
+        order_id=data.order_id,
+        new_status=data.event,
+    )
+
+    return {
+        "status": "notification sent",
+        "notification": notification.model_dump(),
+    }
+
+
+@router.post("/notify-new-order")
 def notify_new_order(data: ManagerAlertRequest):
     message = data.message or f"New order #{data.order_id} was placed by customer #{data.customer_id}."
 
@@ -195,19 +252,19 @@ def notify_new_order(data: ManagerAlertRequest):
         title="New Order Alert",
         message=message,
         notification_type="manager_new_order_alert",
-        order_id=data.order_id
+        order_id=data.order_id,
     )
 
     return {
         "status": "notification sent",
-        "notification": notification.dict()
+        "notification": notification.model_dump(),
     }
 
 
-@app.get("/users/{user_id}/notifications")
+@router.get("/users/{user_id}/notifications")
 def get_user_notifications(user_id: str):
     user_notifications = [
-        notification.dict()
+        notification.model_dump()
         for notification in notifications_db
         if notification.user_id == user_id
     ]
@@ -215,14 +272,14 @@ def get_user_notifications(user_id: str):
     return {
         "user_id": user_id,
         "count": len(user_notifications),
-        "notifications": user_notifications
+        "notifications": user_notifications,
     }
 
 
-@app.get("/users/{user_id}/notifications/unread")
+@router.get("/users/{user_id}/notifications/unread")
 def get_unread_notifications(user_id: str):
     unread_notifications = [
-        notification.dict()
+        notification.model_dump()
         for notification in notifications_db
         if notification.user_id == user_id and not notification.is_read
     ]
@@ -230,17 +287,17 @@ def get_unread_notifications(user_id: str):
     return {
         "user_id": user_id,
         "count": len(unread_notifications),
-        "notifications": unread_notifications
+        "notifications": unread_notifications,
     }
 
 
-@app.patch("/notifications/{notification_id}/read")
+@router.patch("/notifications/{notification_id}/read")
 def mark_notification_as_read(notification_id: int):
     for notification in notifications_db:
         if notification.notification_id == notification_id:
             notification.is_read = True
             return {
                 "status": "notification marked as read",
-                "notification": notification.dict()
+                "notification": notification.model_dump(),
             }
     raise HTTPException(status_code=404, detail="Notification not found")
