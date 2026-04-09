@@ -71,6 +71,21 @@ function App() {
     const [currentUser, setCurrentUser] = useState(null)
     const [authMode, setAuthMode] = useState('preview')
     const [showAuth, setShowAuth] = useState(false)
+    const [checkoutLoading, setCheckoutLoading] = useState(false)
+    const [checkoutError, setCheckoutError] = useState('')
+    const [deliveryMethod, setDeliveryMethod] = useState('car')
+    const [paymentMethod, setPaymentMethod] = useState('credit_card')
+
+    const [walletLoading, setWalletLoading] = useState(false)
+    const [walletBalance, setWalletBalance] = useState(0)
+    const [showAddFunds, setShowAddFunds] = useState(false)
+    const [addFundsAmount, setAddFundsAmount] = useState('')
+    const [addFundsMethod, setAddFundsMethod] = useState('credit_card')
+    const [addFundsError, setAddFundsError] = useState('')
+    const [addFundsLoading, setAddFundsLoading] = useState(false)
+
+    const [selectedOrder, setSelectedOrder] = useState(null)
+    const [selectedDelivery, setSelectedDelivery] = useState(null)
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
@@ -166,6 +181,27 @@ function App() {
         loadMenu()
     }, [selectedRestaurantId, menusByRestaurant])
 
+    useEffect(() => {
+        async function loadWallet() {
+            if (!currentUser) {
+                setWalletBalance(0)
+                return
+            }
+
+            try {
+                setWalletLoading(true)
+                await refreshWalletBalance()
+            } catch (err) {
+                console.error('Failed to load wallet:', err)
+                setWalletBalance(0)
+            } finally {
+                setWalletLoading(false)
+            }
+        }
+
+        loadWallet()
+    }, [currentUser])
+
     const restaurantsWithUi = useMemo(() => {
         return restaurants.map((restaurant) => ({
             ...restaurant,
@@ -180,11 +216,16 @@ function App() {
     }, [restaurants, favouriteIds, menusByRestaurant])
 
     const selectedRestaurant =
-        restaurantsWithUi.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null
+    restaurantsWithUi.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null
 
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+    const activeOrders = orderHistory.filter(
+        (order) => !['Completed', 'Cancelled', 'Delivered'].includes(order.status)
+)
+
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -301,66 +342,123 @@ function App() {
         })
     }
 
-    async function checkoutCart() {
-    if (cart.length === 0) return
-    if (!currentUser) {
-        setShowAuth(true)
-        return
-    }
-
-    setCheckoutLoading(true)
-    setCheckoutError('')
-
-    const restaurantId = cart[0].restaurantId
-    const restaurantName = cart[0].restaurantName
-    const customer_city = selectedRestaurant?.address || 'City_1'
-
-    try {
-        const created = await placeOrder({
-            restaurant_id: restaurantId,
-            customer_id: currentUser.id,
-            delivery_method: deliveryMethod,
-            customer_city,
-            items: cart.map((item) => ({
-                menu_item_id: item.id,
-                quantity: item.quantity,
-            })),
-        })
-
-        const orderId = created.order_id
-
-        await payOrder(orderId, {
-            customer_id: currentUser.id,
-            payment_method: paymentMethod,
-            simulate_success: true,
-        })
-
-        const order = {
-            id: `ORD-${Date.now()}`,
-            restaurantId,
-            restaurantName,
-            createdAt: new Date().toLocaleString(),
-            status: 'Placed',
-            total: cartTotal,
-            items: cart.map((item) => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-            })),
+    async function refreshWalletBalance() {
+        if (!currentUser) {
+            setWalletBalance(0)
+            return 0
         }
 
-        setOrderHistory((prev) => [order, ...prev].slice(0, 10))
-        buildRememberedItemsFromOrder(order)
-        setCart([])
-        setView('orderAgain')
-    } catch (err) {
-        setCheckoutError(err.message || 'Failed to place order')
-    } finally {
-        setCheckoutLoading(false)
-    }
-}
+        const data = await getWallet()
+        console.log('wallet refresh response:', data)
 
+        const rawBalance = Number(data.wallet ?? data.balance ?? data.amount ?? 0)
+        const balance = Math.round(rawBalance * 100) / 100
+
+        setWalletBalance(balance)
+        return balance
+    }
+
+    async function checkoutCart() {
+        if (cart.length === 0) return
+        if (!currentUser) {
+            setShowAuth(true)
+            return
+        }
+
+        setCheckoutLoading(true)
+        setCheckoutError('')
+
+        const restaurantId = cart[0].restaurantId
+        const restaurantName = cart[0].restaurantName
+        const customer_city = selectedRestaurant?.address || 'City_1'
+
+        try {
+            if (paymentMethod === 'wallet') {
+                const latestBalance = await refreshWalletBalance()
+                if (latestBalance < cartTotal) {
+                    setCheckoutError('Insufficient funds in wallet')
+                    return
+                }
+            }
+
+            const created = await placeOrder({
+                restaurant_id: restaurantId,
+                customer_id: currentUser.id,
+                delivery_method: deliveryMethod,
+                customer_city,
+                items: cart.map((item) => ({
+                    menu_item_id: item.id,
+                    quantity: item.quantity,
+                })),
+            })
+
+            console.log('frontend cartTotal:', cartTotal)
+            console.log('created order response:', created)
+            console.log('created pricing fields:', {
+                total: created.total,
+                subtotal: created.subtotal,
+                amount: created.amount,
+                delivery_fee: created.delivery_fee,
+                service_fee: created.service_fee,
+                tax: created.tax,
+            })
+
+            const orderId = created.order_id
+
+            const paymentResult = await payOrder(orderId, {
+                customer_id: currentUser.id,
+                payment_method: paymentMethod,
+                simulate_success: true,
+            })
+
+            console.log('payOrder response:', paymentResult)
+            console.log('payment pricing fields:', {
+                total: paymentResult.total,
+                subtotal: paymentResult.subtotal,
+                amount: paymentResult.amount,
+                charged_amount: paymentResult.charged_amount,
+                delivery_fee: paymentResult.delivery_fee,
+                service_fee: paymentResult.service_fee,
+                tax: paymentResult.tax,
+            })
+
+            if (paymentMethod === 'wallet') {
+                await refreshWalletBalance()
+            }
+
+            const backendTotal = Number(paymentResult?.amount ?? cartTotal)
+
+            const newOrder = {
+                id: orderId,
+                restaurantId,
+                restaurantName,
+                createdAt: new Date().toLocaleString(),
+                status: 'Placed',
+                total: walletBalance - (await refreshWalletBalance()),
+                items: cart.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                })),
+            }
+
+            setOrderHistory((prev) => [newOrder, ...prev].slice(0, 10))
+            buildRememberedItemsFromOrder(newOrder)
+            setCart([])
+            setView('orderAgain')
+            setCheckoutError('')
+        } catch (err) {
+            setCheckoutError(err.message || 'Failed to place order')
+
+            try {
+                await refreshWalletBalance()
+            } catch {
+            }
+        } finally {
+            setCheckoutLoading(false)
+        }
+    }
     function reorderSingleItem(rememberedItem) {
         const restaurant = restaurantsWithUi.find((r) => r.id === rememberedItem.restaurantId)
         const liveItem = restaurant?.menu.find((item) => item.id === rememberedItem.menuItemId)
@@ -381,12 +479,22 @@ function App() {
 
     async function handleAddFunds() {
         const amount = parseFloat(addFundsAmount)
-        if (!amount || amount <= 0) { setAddFundsError('Enter a valid amount'); return }
+        if (!amount || amount <= 0) {
+            setAddFundsError('Enter a valid amount')
+            return
+        }
+
         setAddFundsLoading(true)
         setAddFundsError('')
+
         try {
-            const data = await putWallet(currentUser.id, { amount, payment_method: addFundsMethod })
-            setWalletBalance(Number(data.wallet ?? data.new_balance ?? walletBalance + amount))
+            await putWallet(currentUser.id, {
+                amount,
+                payment_method: addFundsMethod,
+            })
+
+            await refreshWalletBalance()
+            setCheckoutError('')
             setShowAddFunds(false)
             setAddFundsAmount('')
         } catch (err) {
@@ -394,7 +502,7 @@ function App() {
         } finally {
             setAddFundsLoading(false)
         }
-    } 
+    }
 
     function handleSignOut() {
         setCurrentUser(null)
@@ -505,9 +613,6 @@ function App() {
                     </button>
                     <button className={view === 'currentOrders' ? 'nav active' : 'nav'} onClick={() => setView('currentOrders')}>
                         Current Orders
-                    </button>
-                    <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
-                        Restaurant
                     </button>
                     {currentUser?.role === 'RESTAURANT_OWNER' && (
                         <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>

@@ -95,6 +95,11 @@ def process_payment(db: Session, order_id: str, customer_id: str, payment_data):
     
 
     amount = _calculate_total(order, promo_code=payment_data.promo_code)
+    print("PAYMENT DEBUG")
+    print("order_id:", order_id)
+    print("order items:", order.get("items"))
+    print("calculated amount:", amount)
+    print("wallet before:", user.wallet)
 
     if payment_data.payment_method == "wallet" and user.wallet < amount:
         raise HTTPException(status_code=400, detail="Insufficient funds in wallet")
@@ -116,7 +121,7 @@ def process_payment(db: Session, order_id: str, customer_id: str, payment_data):
 
     if is_success:
         if payment_data.payment_method == "wallet":
-            user.wallet -= amount
+            user.wallet = round(user.wallet - amount, 2)
             db.commit()
             db.refresh(user)
         update_order_status(order_id, "Paid")
@@ -158,7 +163,7 @@ def process_payment_for_wallet(db: Session, customer_id: str, payment_data):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.wallet += payment_data.amount
+    user.wallet = round(user.wallet + payment_data.amount, 2)
     db.commit()
     db.refresh(user)
     _send_payment_notification_for_wallet_topup(customer_id, payment_data.amount)
