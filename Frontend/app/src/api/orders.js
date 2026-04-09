@@ -1,66 +1,58 @@
-const API_BASE = 'http://localhost:8000';
+import { client } from "./client";
 
-export async function fetchOrder(orderId) {
-  const res = await fetch(`${API_BASE}/orders/${orderId}`);
-  if (!res.ok) throw new Error("Failed to fetch order");
-  return res.json();
-}
+export const fetchOrder = async (orderId) => {
+  const response = await client.get(`/orders/${orderId}`);
+  return response.data;
+};
 
-export async function fetchOrdersByCustomer(customerId) {
-  const res = await fetch(`${API_BASE}/orders/customer/${customerId}`);
-  if (!res.ok) throw new Error("Failed to fetch customer orders");
-  return res.json();
-}
+export const fetchOrdersByCustomer = async (customerId) => {
+  const response = await client.get(`/orders/customer/${customerId}`);
+  return response.data;
+};
 
-export async function createOrder(orderData) {
-  const res = await fetch(`${API_BASE}/orders`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(orderData),
+export const createOrder = async (orderData) => {
+  const response = await client.post(`/orders`, orderData);
+  return response.data;
+};
+
+export const updateOrderStatus = async (orderId, status) => {
+  const response = await client.put(`/orders/${orderId}/status`, {
+    order_status: status,
   });
-  if (!res.ok) throw new Error("Failed to create order");
-  return res.json();
-}
+  return response.data;
+};
 
-export async function updateOrderStatus(orderId, status) {
-  const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ order_status: status }),
+export const payForOrder = async (orderId, paymentData) => {
+  const response = await client.post(`/orders/${orderId}/pay`, {
+    amount: paymentData.amount,
+    method: paymentData.method || "card",
   });
-  if (!res.ok) throw new Error("Failed to update order status");
-  return res.json();
-}
+  return response.data;
+};
 
-export async function payForOrder(orderId, paymentData) {
-  const res = await fetch(`${API_BASE}/orders/${orderId}/pay`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      amount: paymentData.amount,
-      method: paymentData.method || "card" // replace with "credit_card"/"debit_card"/"cash" if needed
-    }),
+export const fetchDelivery = async (orderId) => {
+  const response = await client.get(`/deliveries/${orderId}`);
+  return response.data;
+};
+
+export const updateDeliveryStatus = async (orderId, deliveryStatus) => {
+  const response = await client.put(`/deliveries/${orderId}/status`, {
+    delivery_status: deliveryStatus,
   });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(err);
-    throw new Error("Payment failed");
-  }
-  return res.json();
-}
+  return response.data;
+};
 
-export async function fetchDelivery(orderId) {
-  const res = await fetch(`${API_BASE}/deliveries/${orderId}`);
-  if (!res.ok) throw new Error("Failed to fetch delivery");
-  return res.json();
-}
+export const getOrdersByUser = async (userId) => {
+  const response = await client.get(`/orders/user/${userId}`);
+  return response.data;
+};
 
-export async function updateDeliveryStatus(orderId, deliveryStatus) {
-  const res = await fetch(`${API_BASE}/deliveries/${orderId}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ delivery_status: deliveryStatus }),
-  });
-  if (!res.ok) throw new Error("Failed to update delivery status");
-  return res.json();
-}
+export const getOrderHistory = async (userId) => {
+  const response = await client.get(`/orders/user/${userId}/history`);
+  return response.data;
+};
+
+export const reorderPastOrder = async (orderId) => {
+  const response = await client.post(`/orders/${orderId}/reorder`);
+  return response.data;
+};

@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 import './styles/app.css'
-import { fetchRestaurants, fetchRestaurantMenu, fetchCurrentUser, getWallet, putWallet, placeOrder, payOrder, fetchCustomerOrders } from './api'
-import ETABox from './components/common/ETABox';
-import { fetchDelivery } from './api/orders';
+import {
+  fetchRestaurants,
+  fetchRestaurantMenu,
+  fetchCurrentUser,
+  getWallet,
+  putWallet,
+  placeOrder,
+  payOrder,
+  fetchCustomerOrders,
+} from './api'
+import ETABox from './components/common/ETABox'
+import { fetchDelivery } from './api/orders'
 import LoginPage from './pages/LoginPage'
+import NotificationList from './components/common/NotificationList'
+{/* import OrderStatusCard from './components/common/OrderStatusCard'*/}
 
 const STORAGE_KEYS = {
     favourites: 'fd_favourite_restaurant_ids',
     orders: 'fd_order_history',
     remembered: 'fd_remembered_items',
+    notifications: 'fd_notifications',
 }
 
 function readJson(key, fallback) {
@@ -44,6 +56,9 @@ function App() {
     const [rememberedItems, setRememberedItems] = useState(() =>
         typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.remembered, [])
     )
+    const [notifications, setNotifications] = useState(() =>
+        typeof window === 'undefined' ? [] : readJson(STORAGE_KEYS.notifications, [])
+    )
 
     const [filters, setFilters] = useState({
         location: '',
@@ -56,6 +71,21 @@ function App() {
     const [currentUser, setCurrentUser] = useState(null)
     const [authMode, setAuthMode] = useState('preview')
     const [showAuth, setShowAuth] = useState(false)
+    const [checkoutLoading, setCheckoutLoading] = useState(false)
+    const [checkoutError, setCheckoutError] = useState('')
+    const [deliveryMethod, setDeliveryMethod] = useState('car')
+    const [paymentMethod, setPaymentMethod] = useState('credit_card')
+
+    const [walletLoading, setWalletLoading] = useState(false)
+    const [walletBalance, setWalletBalance] = useState(0)
+    const [showAddFunds, setShowAddFunds] = useState(false)
+    const [addFundsAmount, setAddFundsAmount] = useState('')
+    const [addFundsMethod, setAddFundsMethod] = useState('credit_card')
+    const [addFundsError, setAddFundsError] = useState('')
+    const [addFundsLoading, setAddFundsLoading] = useState(false)
+
+    const [selectedOrder, setSelectedOrder] = useState(null)
+    const [selectedDelivery, setSelectedDelivery] = useState(null)
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.favourites, JSON.stringify(favouriteIds))
@@ -65,6 +95,10 @@ function App() {
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.remembered, JSON.stringify(rememberedItems))
     }, [rememberedItems])
+
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(notifications))
+    }, [notifications])
 
     useEffect(() => {
         async function loadCurrentUser() {
@@ -147,6 +181,27 @@ function App() {
         loadMenu()
     }, [selectedRestaurantId, menusByRestaurant])
 
+    useEffect(() => {
+        async function loadWallet() {
+            if (!currentUser) {
+                setWalletBalance(0)
+                return
+            }
+
+            try {
+                setWalletLoading(true)
+                await refreshWalletBalance()
+            } catch (err) {
+                console.error('Failed to load wallet:', err)
+                setWalletBalance(0)
+            } finally {
+                setWalletLoading(false)
+            }
+        }
+
+        loadWallet()
+    }, [currentUser])
+
     const restaurantsWithUi = useMemo(() => {
         return restaurants.map((restaurant) => ({
             ...restaurant,
@@ -161,102 +216,16 @@ function App() {
     }, [restaurants, favouriteIds, menusByRestaurant])
 
     const selectedRestaurant =
-        restaurantsWithUi.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null
+    restaurantsWithUi.find((restaurant) => restaurant.id === selectedRestaurantId) ?? null
 
     const favouriteRestaurants = restaurantsWithUi.filter((restaurant) => restaurant.isFavourite)
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-    const [walletBalance, setWalletBalance] = useState(0)
-    const [walletLoading, setWalletLoading] = useState(false)
-    const [deliveryMethod, setDeliveryMethod] = useState('car')
-    const [paymentMethod, setPaymentMethod] = useState('credit_card')
-    const [checkoutError, setCheckoutError] = useState('')
-    const [checkoutLoading, setCheckoutLoading] = useState(false)
-    const [showAddFunds, setShowAddFunds] = useState(false)
-    const [addFundsAmount, setAddFundsAmount] = useState('')
-    const [addFundsMethod, setAddFundsMethod] = useState('credit_card')
-    const [addFundsLoading, setAddFundsLoading] = useState(false)
-    const [addFundsError, setAddFundsError] = useState('')
+    const activeOrders = orderHistory.filter(
+        (order) => !['Completed', 'Cancelled', 'Delivered'].includes(order.status)
+)
 
-    useEffect(() => {
-        async function loadWallet() {
-            if (!currentUser) { setWalletBalance(0); return }
-            try {
-                setWalletLoading(true)
-                const data = await getWallet()
-                setWalletBalance(Number(data.wallet ?? 0))
-            } catch {
-                setWalletBalance(0)
-            } finally {
-                setWalletLoading(false)
-            }
-        }
-        loadWallet()
-    }, [currentUser])
-
-    useEffect(() => {
-        async function loadOrders() {
-            if (!currentUser) { setOrderHistory([]); return }
-            try {
-                const orders = await fetchCustomerOrders(currentUser.id)
-                const mapped = orders.map((o) => {
-                    const restaurant = restaurantsWithUi.find((r) => r.id === o.restaurant_id)
-                    return {
-                        id: o.order_id,
-                        restaurantId: o.restaurant_id,
-                        restaurantName: restaurant?.name ?? o.restaurant_id,
-                        createdAt: new Date(o.order_time).toLocaleString(),
-                        status: o.order_status,
-                        total: o.total ?? 0,
-                        items: o.items.map((i) => {
-                            const menuItem = restaurant?.menu.find((m) => m.id === i.menu_item_id)
-                            return { id: i.menu_item_id, name: menuItem?.name ?? i.menu_item_id, price: menuItem?.price ?? 0, quantity: i.quantity }
-                        }),
-                        customer_city: o.customer_city,
-                        delivery_method: o.delivery_method,
-                    }
-                })
-                setOrderHistory(mapped)
-            } catch {
-                setOrderHistory([])
-            }
-        }
-        loadOrders()
-    }, [currentUser])
-
-    const selectedOrder = orderHistory.find(
-        (o) => o.restaurantId === selectedRestaurantId
-    ) ?? {
-        customer_city: selectedRestaurant?.address || " ",
-        delivery_method: "car",
-        order_status: "Order Out for Delivery",
-        items: [],
-        restaurantId: selectedRestaurantId || null,
-        restaurantName: selectedRestaurant?.name || "",
-    };
-
-const [selectedDelivery, setSelectedDelivery] = useState({
-    delivery_time: new Date().toISOString()
-});
-
-useEffect(() => {
-    async function loadDelivery() {
-        if (!selectedOrder?.id) {
-            setSelectedDelivery({ delivery_time: new Date().toISOString() });
-            return;
-        }
-
-        try {
-            const data = await fetchDelivery(selectedOrder.id);
-            setSelectedDelivery(data);
-        } catch {
-            setSelectedDelivery({ delivery_time: new Date().toISOString() });
-        }
-    }
-
-    loadDelivery();
-}, [selectedOrder]);   
 
     function goToRestaurant(restaurantId) {
         setSelectedRestaurantId(restaurantId)
@@ -268,6 +237,28 @@ useEffect(() => {
             prev.includes(restaurantId)
                 ? prev.filter((id) => id !== restaurantId)
                 : [...prev, restaurantId]
+        )
+    }
+
+    function addNotification(message, type) {
+        const newNotification = {
+            id: `NOTIF-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            message,
+            type,
+            read: false,
+            createdAt: new Date().toLocaleString(),
+        }
+
+        setNotifications((prev) => [newNotification, ...prev].slice(0, 20))
+    }
+
+    function markNotificationAsRead(notificationId) {
+        setNotifications((prev) =>
+            prev.map((notification) =>
+                notification.id === notificationId
+                    ? { ...notification, read: true }
+                    : notification
+            )
         )
     }
 
@@ -351,9 +342,28 @@ useEffect(() => {
         })
     }
 
+    async function refreshWalletBalance() {
+        if (!currentUser) {
+            setWalletBalance(0)
+            return 0
+        }
+
+        const data = await getWallet()
+        console.log('wallet refresh response:', data)
+
+        const rawBalance = Number(data.wallet ?? data.balance ?? data.amount ?? 0)
+        const balance = Math.round(rawBalance * 100) / 100
+
+        setWalletBalance(balance)
+        return balance
+    }
+
     async function checkoutCart() {
         if (cart.length === 0) return
-        if (!currentUser) { setShowAuth(true); return }
+        if (!currentUser) {
+            setShowAuth(true)
+            return
+        }
 
         setCheckoutLoading(true)
         setCheckoutError('')
@@ -363,45 +373,92 @@ useEffect(() => {
         const customer_city = selectedRestaurant?.address || 'City_1'
 
         try {
+            if (paymentMethod === 'wallet') {
+                const latestBalance = await refreshWalletBalance()
+                if (latestBalance < cartTotal) {
+                    setCheckoutError('Insufficient funds in wallet')
+                    return
+                }
+            }
+
             const created = await placeOrder({
                 restaurant_id: restaurantId,
                 customer_id: currentUser.id,
                 delivery_method: deliveryMethod,
                 customer_city,
-                items: cart.map((item) => ({ menu_item_id: item.id, quantity: item.quantity })),
+                items: cart.map((item) => ({
+                    menu_item_id: item.id,
+                    quantity: item.quantity,
+                })),
+            })
+
+            console.log('frontend cartTotal:', cartTotal)
+            console.log('created order response:', created)
+            console.log('created pricing fields:', {
+                total: created.total,
+                subtotal: created.subtotal,
+                amount: created.amount,
+                delivery_fee: created.delivery_fee,
+                service_fee: created.service_fee,
+                tax: created.tax,
             })
 
             const orderId = created.order_id
 
-            const paid = await payOrder(orderId, {
+            const paymentResult = await payOrder(orderId, {
                 customer_id: currentUser.id,
                 payment_method: paymentMethod,
                 simulate_success: true,
             })
 
-            const order = {
+            console.log('payOrder response:', paymentResult)
+            console.log('payment pricing fields:', {
+                total: paymentResult.total,
+                subtotal: paymentResult.subtotal,
+                amount: paymentResult.amount,
+                charged_amount: paymentResult.charged_amount,
+                delivery_fee: paymentResult.delivery_fee,
+                service_fee: paymentResult.service_fee,
+                tax: paymentResult.tax,
+            })
+
+            if (paymentMethod === 'wallet') {
+                await refreshWalletBalance()
+            }
+
+            const backendTotal = Number(paymentResult?.amount ?? cartTotal)
+
+            const newOrder = {
                 id: orderId,
                 restaurantId,
                 restaurantName,
                 createdAt: new Date().toLocaleString(),
-                status: paid.order_status,
-                total: paid.amount,
-                items: cart.map((item) => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity })),
-                customer_city,
-                delivery_method: deliveryMethod,
+                status: 'Placed',
+                total: walletBalance - (await refreshWalletBalance()),
+                items: cart.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                })),
             }
 
-            setOrderHistory((prev) => [order, ...prev].slice(0, 10))
-            buildRememberedItemsFromOrder(order)
+            setOrderHistory((prev) => [newOrder, ...prev].slice(0, 10))
+            buildRememberedItemsFromOrder(newOrder)
             setCart([])
             setView('orderAgain')
+            setCheckoutError('')
         } catch (err) {
-            setCheckoutError(err.message || 'Order failed')
+            setCheckoutError(err.message || 'Failed to place order')
+
+            try {
+                await refreshWalletBalance()
+            } catch {
+            }
         } finally {
             setCheckoutLoading(false)
         }
     }
-
     function reorderSingleItem(rememberedItem) {
         const restaurant = restaurantsWithUi.find((r) => r.id === rememberedItem.restaurantId)
         const liveItem = restaurant?.menu.find((item) => item.id === rememberedItem.menuItemId)
@@ -422,12 +479,22 @@ useEffect(() => {
 
     async function handleAddFunds() {
         const amount = parseFloat(addFundsAmount)
-        if (!amount || amount <= 0) { setAddFundsError('Enter a valid amount'); return }
+        if (!amount || amount <= 0) {
+            setAddFundsError('Enter a valid amount')
+            return
+        }
+
         setAddFundsLoading(true)
         setAddFundsError('')
+
         try {
-            const data = await putWallet(currentUser.id, { amount, payment_method: addFundsMethod })
-            setWalletBalance(Number(data.wallet ?? data.new_balance ?? walletBalance + amount))
+            await putWallet(currentUser.id, {
+                amount,
+                payment_method: addFundsMethod,
+            })
+
+            await refreshWalletBalance()
+            setCheckoutError('')
             setShowAddFunds(false)
             setAddFundsAmount('')
         } catch (err) {
@@ -435,7 +502,7 @@ useEffect(() => {
         } finally {
             setAddFundsLoading(false)
         }
-    } 
+    }
 
     function handleSignOut() {
         setCurrentUser(null)
@@ -468,6 +535,27 @@ useEffect(() => {
         setCart(nextCart)
         setSelectedRestaurantId(restaurant.id)
         setView('restaurant')
+    }
+
+    function simulateOrderStatusUpdate(orderId, nextStatus) {
+        setOrderHistory((prev) =>
+            prev.map((order) =>
+                order.id === orderId
+                    ? {
+                          ...order,
+                          status: nextStatus,
+                      }
+                    : order
+            )
+        )
+
+        const updatedOrder = orderHistory.find((order) => order.id === orderId)
+        if (updatedOrder) {
+            addNotification(
+                `Your order from ${updatedOrder.restaurantName} is now ${nextStatus.toLowerCase()}.`,
+                nextStatus.toLowerCase().replaceAll(' ', '_')
+            )
+        }
     }
 
     return (
@@ -520,8 +608,11 @@ useEffect(() => {
                     <button className={view === 'orderAgain' ? 'nav active' : 'nav'} onClick={() => setView('orderAgain')}>
                         Order Again
                     </button>
-                    <button className={view === 'restaurant' ? 'nav active' : 'nav'} onClick={() => setView('restaurant')}>
-                        Restaurant
+                    <button className={view === 'notifications' ? 'nav active' : 'nav'} onClick={() => setView('notifications')}>
+                        Notifications
+                    </button>
+                    <button className={view === 'currentOrders' ? 'nav active' : 'nav'} onClick={() => setView('currentOrders')}>
+                        Current Orders
                     </button>
                     {currentUser?.role === 'RESTAURANT_OWNER' && (
                         <button className={view === 'owner' ? 'nav active' : 'nav'} onClick={() => setView('owner')}>
@@ -778,6 +869,95 @@ useEffect(() => {
                         </>
                     )}
 
+                    {view === 'notifications' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Notifications</h2>
+                                <p className="muted">
+                                    Stay updated as your order moves through different stages.
+                                </p>
+                            </section>
+
+                            <section className="section-card">
+                                <NotificationList
+                                    notifications={notifications}
+                                    onMarkRead={markNotificationAsRead}
+                                />
+                            </section>
+                        </>
+                    )}
+
+                    {view === 'currentOrders' && (
+                        <>
+                            <section className="section-card">
+                                <h2>Current Orders</h2>
+                                <p className="muted">
+                                    Track the status of your active orders in real time.
+                                </p>
+                            </section>
+
+                            {activeOrders.length === 0 ? (
+                                <section className="section-card">
+                                    <p className="muted">No active orders right now.</p>
+                                </section>
+                            ) : (
+                                <section className="stack-list">
+                                    {activeOrders.map((order) => (
+                                        <article key={order.id} className="section-card">
+                                            <div className="order-card">
+                                            <div className="row between start">
+                                                <div>
+                                                    <strong>{order.restaurantName}</strong>
+                                                    <p className="muted">{order.id}</p>
+                                                    <p className="muted">{order.createdAt}</p>
+                                                </div>
+                                                <div className="order-meta">
+                                                    <strong>{currency(order.total)}</strong>
+                                                    <span className="chip">{order.status}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="order-items-preview">
+                                                {order.items.map((item) => (
+                                                    <span key={`${order.id}-${item.id}`} className="preview-pill">
+                                                        {item.name} × {item.quantity}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                            <div className="row gap-sm" style={{ marginTop: '12px' }}>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Confirmed')}
+                                                >
+                                                    Mark Confirmed
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Preparing')}
+                                                >
+                                                    Mark Preparing
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Out for Delivery')}
+                                                >
+                                                    Mark Out for Delivery
+                                                </button>
+                                                <button
+                                                    className="secondary-btn"
+                                                    onClick={() => simulateOrderStatusUpdate(order.id, 'Completed')}
+                                                >
+                                                    Mark Completed
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </section>
+                            )}
+                        </>
+                    )}
+
                     {view === 'restaurant' && selectedRestaurant && (
                         <>
                             <section className="restaurant-hero">
@@ -838,7 +1018,10 @@ useEffect(() => {
                             <section className="placeholder-grid">
                                 <article className="placeholder-card">
                                     <h3>Notifications</h3>
-                                    <p className="muted">Reserved for teammate notification feature.</p>
+                                    <p className="muted">View real-time updates about your order.</p>
+                                    <button className="primary-btn" onClick={() => setView('notifications')}>
+                                        Open notifications
+                                    </button>
                                 </article>
                                 <article className="placeholder-card">
                                     <h3>ETA Tracking</h3>
