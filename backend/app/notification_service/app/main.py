@@ -1,9 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime, UTC
+from datetime import datetime
 
-app = FastAPI(title="Notification Service")
+router = APIRouter(tags=["notifications"])
 
 
 class GeneralNotificationRequest(BaseModel):
@@ -106,22 +106,17 @@ def create_notification(
     return notification
 
 
-@app.get("/")
-def root():
+@router.get("/notifications")
+def notification_root():
     return {"message": "Notification service running"}
 
 
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-
-@app.get("/users/{user_id}/preferences")
+@router.get("/users/{user_id}/preferences")
 def get_user_preferences(user_id: str):
     return get_or_create_preferences(user_id).dict()
 
 
-@app.put("/users/{user_id}/preferences")
+@router.put("/users/{user_id}/preferences")
 def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     prefs = get_or_create_preferences(user_id)
 
@@ -139,7 +134,7 @@ def update_user_preferences(user_id: str, data: NotificationPreferenceUpdate):
     }
 
 
-@app.post("/send-general")
+@router.post("/send-general")
 def send_general_notification(data: GeneralNotificationRequest):
     if not notification_allowed(data.user_id, data.type):
         return {
@@ -161,7 +156,7 @@ def send_general_notification(data: GeneralNotificationRequest):
     }
 
 
-@app.post("/notify-status-change")
+@router.post("/notify-status-change")
 def notify_status_change(data: StatusChangeNotificationRequest):
     if not notification_allowed(data.user_id, "order_status_update"):
         return {
@@ -186,7 +181,7 @@ def notify_status_change(data: StatusChangeNotificationRequest):
     }
 
 
-@app.post("/notify-new-order")
+@router.post("/notify-new-order")
 def notify_new_order(data: ManagerAlertRequest):
     message = data.message or f"New order #{data.order_id} was placed by customer #{data.customer_id}."
 
@@ -204,7 +199,7 @@ def notify_new_order(data: ManagerAlertRequest):
     }
 
 
-@app.get("/users/{user_id}/notifications")
+@router.get("/users/{user_id}/notifications")
 def get_user_notifications(user_id: str):
     user_notifications = [
         notification.dict()
@@ -219,7 +214,7 @@ def get_user_notifications(user_id: str):
     }
 
 
-@app.get("/users/{user_id}/notifications/unread")
+@router.get("/users/{user_id}/notifications/unread")
 def get_unread_notifications(user_id: str):
     unread_notifications = [
         notification.dict()
@@ -234,7 +229,7 @@ def get_unread_notifications(user_id: str):
     }
 
 
-@app.patch("/notifications/{notification_id}/read")
+@router.patch("/notifications/{notification_id}/read")
 def mark_notification_as_read(notification_id: int):
     for notification in notifications_db:
         if notification.notification_id == notification_id:

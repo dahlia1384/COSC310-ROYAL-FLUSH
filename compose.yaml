@@ -7,10 +7,11 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile.backend
     container_name: cosc310_backend
@@ -18,41 +19,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/app/data:/app/app/data
-    environment:
-      PRICE_URL: http://price_service:8002
-      NOTIFICATION_URL: http://notification_service:8001
-    depends_on:
-      notification_service:
-        condition: service_healthy
-      price_service:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  notification_service:
-    build: ./backend/app/notification_service
-    container_name: cosc310_notification
-    ports:
-      - "8001:8001"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  price_service:
-    build: ./backend/app/price_service
-    container_name: cosc310_price
-    ports:
-      - "8002:8002"
-    volumes:
-      - ./backend/app/data:/app/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
